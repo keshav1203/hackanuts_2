@@ -1,0 +1,58 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 42 45% 96%;
+    --card: 0 0% 100%;
+    --foreground: 230 25% 12%;
+    --muted: 40 35% 92%;
+    --muted-foreground: 230 10% 40%;
+    --secondary: 40 40% 93%;
+    --border: 38 25% 85%;
+    --primary: 228 92% 56%;
+    --primary-foreground: 0 0% 100%;
+    --success: 152 70% 36%;
+    --danger: 350 80% 52%;
+    --warn: 36 95% 48%;
+    --dot: 230 20% 55%;
+    --grid: 230 20% 50%;
+  }
+  .dark {
+    --background: 232 28% 8%;
+    --card: 232 24% 12%;
+    --foreground: 42 40% 94%;
+    --muted: 232 20% 16%;
+    --muted-foreground: 232 10% 66%;
+    --secondary: 232 20% 17%;
+    --border: 232 16% 22%;
+    --primary: 226 100% 69%;
+    --primary-foreground: 232 28% 8%;
+    --success: 152 65% 52%;
+    --danger: 350 90% 66%;
+    --warn: 38 95% 58%;
+    --dot: 42 30% 80%;
+    --grid: 42 30% 80%;
+  }
+  * { @apply border-border; }
+  body { @apply bg-background text-foreground font-sans antialiased; }
+  h1, h2, h3 { @apply font-display; }
+  :focus-visible { outline: 2px solid hsl(var(--primary)); outline-offset: 2px; }
+}
+
+/* Fine grid + dots, fading toward the edges */
+.bg-pattern {
+  position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background-image:
+    radial-gradient(hsl(var(--dot) / 0.28) 1.1px, transparent 1.2px),
+    linear-gradient(hsl(var(--grid) / 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(var(--grid) / 0.07) 1px, transparent 1px);
+  background-size: 22px 22px, 88px 88px, 88px 88px;
+  -webkit-mask-image: radial-gradient(ellipse 85% 75% at 50% 35%, #000 40%, transparent 100%);
+          mask-image: radial-gradient(ellipse 85% 75% at 50% 35%, #000 40%, transparent 100%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}

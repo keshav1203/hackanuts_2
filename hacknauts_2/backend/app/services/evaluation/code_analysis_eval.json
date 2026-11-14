@@ -1,0 +1,382 @@
+[
+  {
+    "id": "CA-EVAL-001",
+    "name": "Python SQLAlchemy N+1 Query in Loop",
+    "input": {
+      "profile": {"primary_language": "Python", "frameworks": ["FastAPI"], "databases": ["PostgreSQL"], "orms": ["SQLAlchemy"], "endpoint_count": 1},
+      "scanner_findings": [{
+        "id": "scan-001", "kind": "n_plus_one", "title": "Database query inside a loop", "severity": "High", "area": "Database",
+        "file": "app/routers/users.py", "line": 45,
+        "snippet": "for user in users:\n    orders = db.query(Order).filter(Order.user_id == user.id).all()",
+        "why": "Each iteration issues an independent query roundtrip."
+      }]
+    },
+    "expected_findings": [{
+      "finding_id": "CA-001", "title": "Database query inside a loop", "category": "database", "severity": "high",
+      "file_path": "app/routers/users.py", "line_number": 45, "confidence_min": 0.8
+    }],
+    "expected_output_structure": {"agent": "code_analysis", "has_findings": true, "statistics_keys": ["critical", "high", "medium", "low"]},
+    "evaluation_criteria": {"target_rule": "n_plus_one", "required_keywords": ["roundtrip", "eager", "join", "query"], "min_confidence": 0.7}
+  },
+  {
+    "id": "CA-EVAL-002",
+    "name": "Blocking Sleep in FastAPI Async Handler",
+    "input": {
+      "profile": {"primary_language": "Python", "frameworks": ["FastAPI"], "databases": [], "endpoint_count": 1},
+      "scanner_findings": [{
+        "id": "scan-002", "kind": "blocking_in_async", "title": "Blocking call inside async code", "severity": "High", "area": "Code",
+        "file": "app/routers/tasks.py", "line": 28,
+        "snippet": "async def process_task():\n    time.sleep(5)\n    return {'status': 'done'}",
+        "why": "Synchronous sleep stalls the asyncio event loop for all concurrent requests."
+      }]
+    },
+    "expected_findings": [{
+      "finding_id": "CA-002", "title": "Blocking call inside async code", "category": "code", "severity": "high",
+      "file_path": "app/routers/tasks.py", "line_number": 28, "confidence_min": 0.85
+    }],
+    "expected_output_structure": {"agent": "code_analysis", "has_findings": true},
+    "evaluation_criteria": {"target_rule": "blocking_in_async", "required_keywords": ["event loop", "asyncio", "stall", "thread"]}
+  },
+  {
+    "id": "CA-EVAL-003",
+    "name": "Node.js Express Blocking readFileSync in Route",
+    "input": {
+      "profile": {"primary_language": "JavaScript", "frameworks": ["Express"], "databases": [], "endpoint_count": 1},
+      "scanner_findings": [{
+        "id": "scan-003", "kind": "blocking_sync_call", "title": "Synchronous blocking call", "severity": "Medium", "area": "Code",
+        "file": "src/controllers/config.js", "line": 14,
+        "snippet": "app.get('/config', (req, res) => {\n  const data = fs.readFileSync('/etc/app.json');\n  res.json(JSON.parse(data));\n});",
+        "why": "readFileSync freezes the single-threaded Node event loop."
+      }]
+    },
+    "expected_findings": [{
+      "finding_id": "CA-003", "title": "Synchronous blocking call", "category": "code", "severity": "medium",
+      "file_path": "src/controllers/config.js", "line_number": 14, "confidence_min": 0.8
+    }],
+    "expected_output_structure": {"agent": "code_analysis", "has_findings": true},
+    "evaluation_criteria": {"target_rule": "blocking_sync_call", "required_keywords": ["event loop", "async", "fs.promises"]}
+  },
+  {
+    "id": "CA-EVAL-004",
+    "name": "Unbounded Database Query Without Pagination",
+    "input": {
+      "profile": {"primary_language": "Python", "frameworks": ["Django"], "databases": ["PostgreSQL"], "endpoint_count": 2},
+      "scanner_findings": [{
+        "id": "scan-004", "kind": "unbounded_query", "title": "Query returns every row", "severity": "Medium", "area": "Database",
+        "file": "sales/views.py", "line": 34,
+        "snippet": "orders = Order.objects.all()\nreturn Response(OrderSerializer(orders, many=True).data)",
+        "why": "Unbounded table scan loads entire database into server RAM."
+      }]
+    },
+    "expected_findings": [{
+      "finding_id": "CA-004", "title": "Query returns every row", "category": "database", "severity": "medium",
+      "file_path": "sales/views.py", "line_number": 34, "confidence_min": 0.75
+    }],
+    "expected_output_structure": {"agent": "code_analysis", "has_findings": true},
+    "evaluation_criteria": {"target_rule": "unbounded_query", "required_keywords": ["pagination", "limit", "memory"]}
+  },
+  {
+    "id": "CA-EVAL-005",
+    "name": "SQL LIKE Leading Wildcard Full Table Scan",
+    "input": {
+      "profile": {"primary_language": "Python", "frameworks": ["Flask"], "databases": ["MySQL"], "endpoint_count": 1},
+      "scanner_findings": [{
+        "id": "scan-005", "kind": "leading_wildcard_like", "title": "LIKE with a leading wildcard", "severity": "Medium", "area": "Database",
+        "file": "app/search.py", "line": 19,
+        "snippet": "cursor.execute(\"SELECT id, name FROM items WHERE name LIKE %s\", (f\"%{term}%\",))",
+        "why": "Leading % prevents B-tree index utilization."
+      }]
+    },
+    "expected_findings": [{
+      "finding_id": "CA-005", "title": "LIKE with a leading wildcard", "category": "database", "severity": "medium",
+      "file_path": "app/search.py", "line_number": 19, "confidence_min": 0.75
+    }],
+    "expected_output_structure": {"agent": "code_analysis", "has_findings": true},
+    "evaluation_criteria": {"target_rule": "leading_wildcard_like", "required_keywords": ["index", "full table scan", "gin", "full-text"]}
+  },
+  {
+    "id": "CA-EVAL-006",
+    "name": "HTTP Requests Sequentially in Loop",
+    "input": {
+      "profile": {"primary_language": "Python", "frameworks": ["FastAPI"], "databases": [], "endpoint_count": 1},
+      "scanner_findings": [{
+        "id": "scan-006", "kind": "http_in_loop", "title": "HTTP requests inside a loop", "severity": "Medium", "area": "Code",
+        "file": "app/clients/enrichment.py", "line": 52,
+        "snippet": "for target in targets:\n    res = requests.get(f'https://api.partner.com/v1/{target}')",
+        "why": "Serial HTTP roundtrips compound latency linearly with target count."
+      }]
+    },
+    "expected_findings": [{
+      "finding_id": "CA-006", "title": "HTTP requests inside a loop", "category": "code", "severity": "medium",
+      "file_path": "app/clients/enrichment.py", "line_number": 52, "confidence_min": 0.8
+    }],
+    "expected_output_structure": {"agent": "code_analysis", "has_findings": true},
+    "evaluation_criteria": {"target_rule": "http_in_loop", "required_keywords": ["latency", "batch", "httpx", "gather"]}
+  },
+  {
+    "id": "CA-EVAL-007",
+    "name": "Sequential Await inside Array Map",
+    "input": {
+      "profile": {"primary_language": "TypeScript", "frameworks": ["NestJS"], "databases": ["MongoDB"], "endpoint_count": 1},
+      "scanner_findings": [{
+        "id": "scan-007", "kind": "sequential_await", "title": "Awaiting inside a loop runs calls one at a time", "severity": "Medium", "area": "Code",
+        "file": "src/services/billing.ts", "line": 80,
+        "snippet": "for (const invoice of invoices) {\n  await this.paymentGateway.charge(invoice);\n}",
+        "why": "Awaiting serially prevents concurrent async execution."
+      }]
+    },
+    "expected_findings": [{
+      "finding_id": "CA-007", "title": "Awaiting inside a loop runs calls one at a time", "category": "code", "severity": "medium",
+      "file_path": "src/services/billing.ts", "line_number": 80, "confidence_min": 0.8
+    }],
+    "expected_output_structure": {"agent": "code_analysis", "has_findings": true},
+    "evaluation_criteria": {"target_rule": "sequential_await", "required_keywords": ["Promise.all", "concurrent", "parallel"]}
+  },
+  {
+    "id": "CA-EVAL-008",
+    "name": "Nested Loops O(N^2) Data Matching",
+    "input": {
+      "profile": {"primary_language": "Python", "frameworks": ["Flask"], "databases": [], "endpoint_count": 1},
+      "scanner_findings": [{
+        "id": "scan-008", "kind": "nested_loop", "title": "Nested loops", "severity": "Low", "area": "Code",
+        "file": "app/reconciliation.py", "line": 61,
+        "snippet": "for txn in transactions:\n    for log_item in logs:\n        if txn.id == log_item.txn_id:\n            matches.append((txn, log_item))",
+        "why": "O(N*M) polynomial complexity scales poorly on large arrays."
+      }]
+    },
+    "expected_findings": [{
+      "finding_id": "CA-008", "title": "Nested loops", "category": "code", "severity": "low",
+      "file_path": "app/reconciliation.py", "line_number": 61, "confidence_min": 0.7
+    }],
+    "expected_output_structure": {"agent": "code_analysis", "has_findings": true},
+    "evaluation_criteria": {"target_rule": "nested_loop", "required_keywords": ["hash", "dict", "complexity", "O(N)"]}
+  },
+  {
+    "id": "CA-EVAL-009",
+    "name": "Uncached Read-Heavy Catalog Route",
+    "input": {
+      "profile": {"primary_language": "Python", "frameworks": ["FastAPI"], "databases": ["PostgreSQL"], "cache": [], "endpoint_count": 3},
+      "scanner_findings": [{
+        "id": "scan-009", "kind": "no_cache", "title": "Read endpoint without caching", "severity": "Medium", "area": "Code",
+        "file": "app/routers/catalog.py", "line": 15,
+        "snippet": "@app.get('/catalog')\ndef get_catalog(db: Session = Depends(get_db)):\n    return db.query(CatalogItem).all()",
+        "why": "Every visitor triggers direct database query on static or semi-static data."
+      }]
+    },
+    "expected_findings": [{
+      "finding_id": "CA-009", "title": "Read endpoint without caching", "category": "code", "severity": "medium",
+      "file_path": "app/routers/catalog.py", "line_number": 15, "confidence_min": 0.7
+    }],
+    "expected_output_structure": {"agent": "code_analysis", "has_findings": true},
+    "evaluation_criteria": {"target_rule": "no_cache", "required_keywords": ["cache", "redis", "ttl", "invalidation"]}
+  },
+  {
+    "id": "CA-EVAL-010",
+    "name": "Dynamic SQL String Concatenation",
+    "input": {
+      "profile": {"primary_language": "Python", "frameworks": ["Flask"], "databases": ["PostgreSQL"], "endpoint_count": 1},
+      "scanner_findings": [{
+        "id": "scan-010", "kind": "dynamic_sql", "title": "SQL built from strings", "severity": "High", "area": "Database",
+        "file": "app/db.py", "line": 40,
+        "snippet": "query = f\"SELECT * FROM users WHERE status = '{status}' AND org_id = {org_id}\"\ncursor.execute(query)",
+        "why": "Stops prepared statement plan caching and allows severe SQL injection."
+      }]
+    },
+    "expected_findings": [{
+      "finding_id": "CA-010", "title": "SQL built from strings", "category": "database", "severity": "high",
+      "file_path": "app/db.py", "line_number": 40, "confidence_min": 0.9
+    }],
+    "expected_output_structure": {"agent": "code_analysis", "has_findings": true},
+    "evaluation_criteria": {"target_rule": "dynamic_sql", "required_keywords": ["parameterized", "injection", "prepare"]}
+  },
+  {
+    "id": "CA-EVAL-011",
+    "name": "Missing Caching Layer Across Entire Application",
+    "input": {
+      "profile": {"primary_language": "Go", "frameworks": ["Gin"], "databases": ["MySQL"], "cache": [], "endpoint_count": 15},
+      "scanner_findings": [{
+        "id": "scan-011", "kind": "no_cache_layer", "title": "No caching layer detected", "severity": "Medium", "area": "Infrastructure",
+        "file": "", "line": 0,
+        "snippet": "Application defines 15 endpoints backed by MySQL but lacks Redis/Memcached.",
+        "why": "Without a distributed cache, database absorbs all peak read volume."
+      }]
+    },
+    "expected_findings": [{
+      "finding_id": "CA-011", "title": "No caching layer detected", "category": "infrastructure", "severity": "medium",
+      "file_path": "", "line_number": 0, "confidence_min": 0.75
+    }],
+    "expected_output_structure": {"agent": "code_analysis", "has_findings": true},
+    "evaluation_criteria": {"target_rule": "no_cache_layer", "required_keywords": ["redis", "memcached", "cache layer"]}
+  },
+  {
+    "id": "CA-EVAL-012",
+    "name": "Missing Background Job Queue for Heavy Tasks",
+    "input": {
+      "profile": {"primary_language": "Python", "frameworks": ["FastAPI"], "databases": ["PostgreSQL"], "queues": [], "endpoint_count": 4},
+      "scanner_findings": [{
+        "id": "scan-012", "kind": "no_job_queue", "title": "Heavy work runs inside requests", "severity": "Low", "area": "Infrastructure",
+        "file": "app/export.py", "line": 22,
+        "snippet": "@app.post('/export')\ndef export_pdf():\n    generate_large_pdf()\n    send_email()",
+        "why": "Worker thread remains locked for tens of seconds per request."
+      }]
+    },
+    "expected_findings": [{
+      "finding_id": "CA-012", "title": "Heavy work runs inside requests", "category": "infrastructure", "severity": "low",
+      "file_path": "app/export.py", "line_number": 22, "confidence_min": 0.8
+    }],
+    "expected_output_structure": {"agent": "code_analysis", "has_findings": true},
+    "evaluation_criteria": {"target_rule": "no_job_queue", "required_keywords": ["celery", "queue", "worker", "background"]}
+  },
+  {
+    "id": "CA-EVAL-013",
+    "name": "Missing Container / Deployment Config",
+    "input": {
+      "profile": {"primary_language": "Python", "frameworks": ["Django"], "databases": ["PostgreSQL"], "has_container_config": false, "endpoint_count": 8},
+      "scanner_findings": [{
+        "id": "scan-013", "kind": "no_container_config", "title": "No container or deploy configuration found", "severity": "Low", "area": "Infrastructure",
+        "file": "", "line": 0,
+        "snippet": "Repository lacks Dockerfile or docker-compose.yml.",
+        "why": "Harder to scale horizontally across multiple instances."
+      }]
+    },
+    "expected_findings": [{
+      "finding_id": "CA-013", "title": "No container or deploy configuration found", "category": "infrastructure", "severity": "low",
+      "file_path": "", "line_number": 0, "confidence_min": 0.7
+    }],
+    "expected_output_structure": {"agent": "code_analysis", "has_findings": true},
+    "evaluation_criteria": {"target_rule": "no_container_config", "required_keywords": ["docker", "container", "horizontal scaling"]}
+  },
+  {
+    "id": "CA-EVAL-014",
+    "name": "Unindexed Foreign Key Relationship Query",
+    "input": {
+      "profile": {"primary_language": "Python", "frameworks": ["FastAPI"], "databases": ["PostgreSQL"], "orms": ["SQLAlchemy"], "endpoint_count": 2},
+      "scanner_findings": [{
+        "id": "scan-014", "kind": "unbounded_query", "title": "Full table scan on missing foreign key index", "severity": "High", "area": "Database",
+        "file": "app/models/orders.py", "line": 18,
+        "snippet": "user_id = Column(Integer, ForeignKey('users.id')) # index=True omitted",
+        "why": "JOINs and WHERE user_id = ? require sequential table scans."
+      }]
+    },
+    "expected_findings": [{
+      "finding_id": "CA-014", "title": "Full table scan on missing foreign key index", "category": "database", "severity": "high",
+      "file_path": "app/models/orders.py", "line_number": 18, "confidence_min": 0.8
+    }],
+    "expected_output_structure": {"agent": "code_analysis", "has_findings": true},
+    "evaluation_criteria": {"target_rule": "unbounded_query", "required_keywords": ["index", "foreign key", "join"]}
+  },
+  {
+    "id": "CA-EVAL-015",
+    "name": "Memory Bloat Loading Entire File into Memory",
+    "input": {
+      "profile": {"primary_language": "Python", "frameworks": ["FastAPI"], "databases": [], "endpoint_count": 1},
+      "scanner_findings": [{
+        "id": "scan-015", "kind": "blocking_sync_call", "title": "Unbounded file read in request", "severity": "Medium", "area": "Code",
+        "file": "app/routers/upload.py", "line": 17,
+        "snippet": "content = await file.read() # 500MB uploaded directly to RAM",
+        "why": "Concurrent file uploads crash worker via OOM."
+      }]
+    },
+    "expected_findings": [{
+      "finding_id": "CA-015", "title": "Unbounded file read in request", "category": "code", "severity": "medium",
+      "file_path": "app/routers/upload.py", "line_number": 17, "confidence_min": 0.8
+    }],
+    "expected_output_structure": {"agent": "code_analysis", "has_findings": true},
+    "evaluation_criteria": {"target_rule": "blocking_sync_call", "required_keywords": ["stream", "chunk", "memory", "oom"]}
+  },
+  {
+    "id": "CA-EVAL-016",
+    "name": "SELECT Star on Wide Analytics Table",
+    "input": {
+      "profile": {"primary_language": "Python", "frameworks": ["Flask"], "databases": ["PostgreSQL"], "endpoint_count": 1},
+      "scanner_findings": [{
+        "id": "scan-016", "kind": "select_star", "title": "SELECT * fetches unneeded columns", "severity": "Low", "area": "Database",
+        "file": "app/analytics.py", "line": 29,
+        "snippet": "cursor.execute(\"SELECT * FROM clickstream_events WHERE org_id = %s\", (org_id,))",
+        "why": "Transfers megabytes of unneeded JSON blobs and disables covering index scans."
+      }]
+    },
+    "expected_findings": [{
+      "finding_id": "CA-016", "title": "SELECT * fetches unneeded columns", "category": "database", "severity": "low",
+      "file_path": "app/analytics.py", "line_number": 29, "confidence_min": 0.75
+    }],
+    "expected_output_structure": {"agent": "code_analysis", "has_findings": true},
+    "evaluation_criteria": {"target_rule": "select_star", "required_keywords": ["columns", "bandwidth", "covering index"]}
+  },
+  {
+    "id": "CA-EVAL-017",
+    "name": "Global Mutable State Growing Indefinitely",
+    "input": {
+      "profile": {"primary_language": "Python", "frameworks": ["FastAPI"], "databases": [], "endpoint_count": 1},
+      "scanner_findings": [{
+        "id": "scan-017", "kind": "blocking_sync_call", "title": "In-memory cache leak without eviction", "severity": "Medium", "area": "Code",
+        "file": "app/cache.py", "line": 10,
+        "snippet": "CACHE_STORE = {}\ndef get_data(key):\n    if key not in CACHE_STORE:\n        CACHE_STORE[key] = compute(key)\n    return CACHE_STORE[key]",
+        "why": "Dictionary grows unbounded causing persistent memory leak."
+      }]
+    },
+    "expected_findings": [{
+      "finding_id": "CA-017", "title": "In-memory cache leak without eviction", "category": "code", "severity": "medium",
+      "file_path": "app/cache.py", "line_number": 10, "confidence_min": 0.8
+    }],
+    "expected_output_structure": {"agent": "code_analysis", "has_findings": true},
+    "evaluation_criteria": {"target_rule": "blocking_sync_call", "required_keywords": ["eviction", "lru", "memory leak", "ttl"]}
+  },
+  {
+    "id": "CA-EVAL-018",
+    "name": "Database Connection Pool Starvation",
+    "input": {
+      "profile": {"primary_language": "Python", "frameworks": ["FastAPI"], "databases": ["PostgreSQL"], "orms": ["SQLAlchemy"], "endpoint_count": 1},
+      "scanner_findings": [{
+        "id": "scan-018", "kind": "blocking_in_async", "title": "Unclosed database session holding connection", "severity": "High", "area": "Database",
+        "file": "app/routers/data.py", "line": 33,
+        "snippet": "db = SessionLocal()\nres = db.query(Item).first()\n# db.close() missing in error branches",
+        "why": "Connection leaks rapidly exhaust the PostgreSQL connection pool."
+      }]
+    },
+    "expected_findings": [{
+      "finding_id": "CA-018", "title": "Unclosed database session holding connection", "category": "database", "severity": "high",
+      "file_path": "app/routers/data.py", "line_number": 33, "confidence_min": 0.85
+    }],
+    "expected_output_structure": {"agent": "code_analysis", "has_findings": true},
+    "evaluation_criteria": {"target_rule": "blocking_in_async", "required_keywords": ["pool", "leak", "context manager", "exhaust"]}
+  },
+  {
+    "id": "CA-EVAL-019",
+    "name": "Row by Row Database Inserts in Loop",
+    "input": {
+      "profile": {"primary_language": "Python", "frameworks": ["FastAPI"], "databases": ["PostgreSQL"], "orms": ["SQLAlchemy"], "endpoint_count": 1},
+      "scanner_findings": [{
+        "id": "scan-019", "kind": "n_plus_one", "title": "Serial database commits in loop", "severity": "High", "area": "Database",
+        "file": "app/ingest.py", "line": 48,
+        "snippet": "for row in csv_rows:\n    db.add(Record(**row))\n    db.commit()",
+        "why": "Committing each row individually creates massive transaction write-ahead-log contention."
+      }]
+    },
+    "expected_findings": [{
+      "finding_id": "CA-019", "title": "Serial database commits in loop", "category": "database", "severity": "high",
+      "file_path": "app/ingest.py", "line_number": 48, "confidence_min": 0.85
+    }],
+    "expected_output_structure": {"agent": "code_analysis", "has_findings": true},
+    "evaluation_criteria": {"target_rule": "n_plus_one", "required_keywords": ["batch", "bulk", "bulk_save_objects", "commit"]}
+  },
+  {
+    "id": "CA-EVAL-020",
+    "name": "High Concurrency Optimistic Lock Missing",
+    "input": {
+      "profile": {"primary_language": "Python", "frameworks": ["Django"], "databases": ["PostgreSQL"], "endpoint_count": 1},
+      "scanner_findings": [{
+        "id": "scan-020", "kind": "blocking_in_async", "title": "Check-then-act race condition in inventory decrement", "severity": "High", "area": "Code",
+        "file": "store/views.py", "line": 55,
+        "snippet": "item = Item.objects.get(id=item_id)\nif item.stock > 0:\n    item.stock -= 1\n    item.save()",
+        "why": "Concurrent requests under flash sales lead to severe overselling race conditions."
+      }]
+    },
+    "expected_findings": [{
+      "finding_id": "CA-020", "title": "Check-then-act race condition in inventory decrement", "category": "code", "severity": "high",
+      "file_path": "store/views.py", "line_number": 55, "confidence_min": 0.85
+    }],
+    "expected_output_structure": {"agent": "code_analysis", "has_findings": true},
+    "evaluation_criteria": {"target_rule": "blocking_in_async", "required_keywords": ["select_for_update", "race condition", "atomic", "f expression"]}
+  }
+]

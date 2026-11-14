@@ -1,0 +1,311 @@
+[
+  {
+    "id": "PERF-EVAL-001",
+    "name": "E-Commerce High Traffic Flash Sale (Stress Test)",
+    "input": {
+      "target_users": 5000,
+      "profile": {
+        "primary_language": "Python", "frameworks": ["FastAPI"], "databases": ["PostgreSQL"], "has_container_config": true,
+        "endpoints": [
+          {"method": "GET", "path": "/products", "file": "app/routers/catalog.py", "line": 20},
+          {"method": "POST", "path": "/checkout", "file": "app/routers/orders.py", "line": 45}
+        ]
+      }
+    },
+    "expected_endpoints": [
+      {"path": "/products", "method": "GET", "authentication_required": false, "testable": true},
+      {"path": "/checkout", "method": "POST", "authentication_required": true, "testable": true}
+    ],
+    "expected_test_plan": {"test_type": "stress", "virtual_users_min": 50, "duration": "2m"},
+    "expected_output_structure": {"agent": "performance_testing", "execution_status": "not_started", "metrics_is_null": true},
+    "evaluation_criteria": {"scenario": "stress", "requires_k6_checks": true, "max_threshold_p95_ms": 1000}
+  },
+  {
+    "id": "PERF-EVAL-002",
+    "name": "Microservice Health Ping (Smoke Test)",
+    "input": {
+      "target_users": 2,
+      "profile": {
+        "primary_language": "Go", "frameworks": ["Gin"], "databases": [], "has_container_config": true,
+        "endpoints": [{"method": "GET", "path": "/healthz", "file": "main.go", "line": 15}]
+      }
+    },
+    "expected_endpoints": [{"path": "/healthz", "method": "GET", "authentication_required": false, "testable": true}],
+    "expected_test_plan": {"test_type": "smoke", "virtual_users_min": 1, "duration": "1m"},
+    "expected_output_structure": {"agent": "performance_testing", "execution_status": "not_started"},
+    "evaluation_criteria": {"scenario": "smoke", "requires_k6_checks": true}
+  },
+  {
+    "id": "PERF-EVAL-003",
+    "name": "Standard SaaS CRUD (Normal Load Test)",
+    "input": {
+      "target_users": 50,
+      "profile": {
+        "primary_language": "TypeScript", "frameworks": ["Express"], "databases": ["MongoDB"], "has_container_config": true,
+        "endpoints": [
+          {"method": "GET", "path": "/api/users", "file": "src/routes.ts", "line": 10},
+          {"method": "POST", "path": "/api/users", "file": "src/routes.ts", "line": 25}
+        ]
+      }
+    },
+    "expected_endpoints": [{"path": "/api/users", "method": "GET", "authentication_required": false, "testable": true}],
+    "expected_test_plan": {"test_type": "load", "virtual_users_min": 25, "duration": "2m"},
+    "expected_output_structure": {"agent": "performance_testing"},
+    "evaluation_criteria": {"scenario": "load", "requires_k6_checks": true}
+  },
+  {
+    "id": "PERF-EVAL-004",
+    "name": "Traffic Spike Surge (Spike Test)",
+    "input": {
+      "target_users": 2000,
+      "profile": {
+        "primary_language": "Python", "frameworks": ["FastAPI"], "databases": ["PostgreSQL"], "has_container_config": true,
+        "endpoints": [{"method": "GET", "path": "/api/breaking-news", "file": "app/news.py", "line": 30}]
+      }
+    },
+    "expected_endpoints": [{"path": "/api/breaking-news", "method": "GET", "authentication_required": false, "testable": true}],
+    "expected_test_plan": {"test_type": "spike", "virtual_users_min": 50},
+    "expected_output_structure": {"agent": "performance_testing"},
+    "evaluation_criteria": {"scenario": "spike", "requires_k6_checks": true}
+  },
+  {
+    "id": "PERF-EVAL-005",
+    "name": "Long-Term Memory Leak Detection (Soak Test)",
+    "input": {
+      "target_users": 100,
+      "profile": {
+        "primary_language": "Java", "frameworks": ["Spring Boot"], "databases": ["PostgreSQL"], "has_container_config": true,
+        "endpoints": [{"method": "GET", "path": "/api/metrics/summary", "file": "MetricsController.java", "line": 22}]
+      }
+    },
+    "expected_endpoints": [{"path": "/api/metrics/summary", "method": "GET", "authentication_required": false, "testable": true}],
+    "expected_test_plan": {"test_type": "soak", "virtual_users_min": 20},
+    "expected_output_structure": {"agent": "performance_testing"},
+    "evaluation_criteria": {"scenario": "soak", "requires_k6_checks": true}
+  },
+  {
+    "id": "PERF-EVAL-006",
+    "name": "User Authentication & JWT Issuance",
+    "input": {
+      "target_users": 200,
+      "profile": {
+        "primary_language": "Python", "frameworks": ["FastAPI"], "databases": ["PostgreSQL"],
+        "endpoints": [{"method": "POST", "path": "/api/auth/token", "file": "app/auth.py", "line": 50}]
+      }
+    },
+    "expected_endpoints": [{"path": "/api/auth/token", "method": "POST", "authentication_required": false, "testable": true}],
+    "expected_test_plan": {"test_type": "load"},
+    "expected_output_structure": {"agent": "performance_testing"},
+    "evaluation_criteria": {"scenario": "load", "requires_k6_checks": true}
+  },
+  {
+    "id": "PERF-EVAL-007",
+    "name": "Large File Upload Multipart Endpoint",
+    "input": {
+      "target_users": 30,
+      "profile": {
+        "primary_language": "Python", "frameworks": ["FastAPI"], "databases": [],
+        "endpoints": [{"method": "POST", "path": "/api/v1/documents/upload", "file": "app/upload.py", "line": 15}]
+      }
+    },
+    "expected_endpoints": [{"path": "/api/v1/documents/upload", "method": "POST", "authentication_required": true}],
+    "expected_test_plan": {"test_type": "load"},
+    "expected_output_structure": {"agent": "performance_testing"},
+    "evaluation_criteria": {"scenario": "load", "requires_k6_checks": true}
+  },
+  {
+    "id": "PERF-EVAL-008",
+    "name": "High Frequency Search Autocomplete",
+    "input": {
+      "target_users": 1500,
+      "profile": {
+        "primary_language": "Go", "frameworks": ["Gin"], "databases": ["Redis"],
+        "endpoints": [{"method": "GET", "path": "/api/search/suggest", "file": "handlers/search.go", "line": 32}]
+      }
+    },
+    "expected_endpoints": [{"path": "/api/search/suggest", "method": "GET", "authentication_required": false, "testable": true}],
+    "expected_test_plan": {"test_type": "stress"},
+    "expected_output_structure": {"agent": "performance_testing"},
+    "evaluation_criteria": {"scenario": "stress", "requires_k6_checks": true}
+  },
+  {
+    "id": "PERF-EVAL-009",
+    "name": "Catalog Pagination Query Parameters",
+    "input": {
+      "target_users": 350,
+      "profile": {
+        "primary_language": "Python", "frameworks": ["Django"], "databases": ["PostgreSQL"],
+        "endpoints": [{"method": "GET", "path": "/api/items", "file": "items/views.py", "line": 40}]
+      }
+    },
+    "expected_endpoints": [{"path": "/api/items", "method": "GET", "testable": true}],
+    "expected_test_plan": {"test_type": "stress"},
+    "expected_output_structure": {"agent": "performance_testing"},
+    "evaluation_criteria": {"scenario": "stress", "requires_k6_checks": true}
+  },
+  {
+    "id": "PERF-EVAL-010",
+    "name": "External Webhook Ingestion Receiver",
+    "input": {
+      "target_users": 500,
+      "profile": {
+        "primary_language": "JavaScript", "frameworks": ["Express"], "databases": ["PostgreSQL"],
+        "endpoints": [{"method": "POST", "path": "/webhooks/stripe", "file": "routes/webhooks.js", "line": 12}]
+      }
+    },
+    "expected_endpoints": [{"path": "/webhooks/stripe", "method": "POST", "testable": true}],
+    "expected_test_plan": {"test_type": "load"},
+    "expected_output_structure": {"agent": "performance_testing"},
+    "evaluation_criteria": {"scenario": "load", "requires_k6_checks": true}
+  },
+  {
+    "id": "PERF-EVAL-011",
+    "name": "Heavy PDF Report Export Endpoint",
+    "input": {
+      "target_users": 20,
+      "profile": {
+        "primary_language": "Python", "frameworks": ["Flask"], "databases": ["PostgreSQL"],
+        "endpoints": [{"method": "POST", "path": "/reports/generate-pdf", "file": "app/reports.py", "line": 60}]
+      }
+    },
+    "expected_endpoints": [{"path": "/reports/generate-pdf", "method": "POST", "testable": true}],
+    "expected_test_plan": {"test_type": "smoke"},
+    "expected_output_structure": {"agent": "performance_testing"},
+    "evaluation_criteria": {"scenario": "smoke", "requires_k6_checks": true}
+  },
+  {
+    "id": "PERF-EVAL-012",
+    "name": "Admin Data Export Bulk Endpoint",
+    "input": {
+      "target_users": 15,
+      "profile": {
+        "primary_language": "Python", "frameworks": ["Django"], "databases": ["PostgreSQL"],
+        "endpoints": [{"method": "GET", "path": "/admin/export-csv", "file": "admin/views.py", "line": 88}]
+      }
+    },
+    "expected_endpoints": [{"path": "/admin/export-csv", "method": "GET", "authentication_required": true}],
+    "expected_test_plan": {"test_type": "smoke"},
+    "expected_output_structure": {"agent": "performance_testing"},
+    "evaluation_criteria": {"scenario": "smoke", "requires_k6_checks": true}
+  },
+  {
+    "id": "PERF-EVAL-013",
+    "name": "Payment Gateway IPN Callback",
+    "input": {
+      "target_users": 100,
+      "profile": {
+        "primary_language": "Go", "frameworks": ["Echo"], "databases": ["PostgreSQL"],
+        "endpoints": [{"method": "POST", "path": "/payments/callback", "file": "controllers/pay.go", "line": 70}]
+      }
+    },
+    "expected_endpoints": [{"path": "/payments/callback", "method": "POST", "testable": true}],
+    "expected_test_plan": {"test_type": "load"},
+    "expected_output_structure": {"agent": "performance_testing"},
+    "evaluation_criteria": {"scenario": "load", "requires_k6_checks": true}
+  },
+  {
+    "id": "PERF-EVAL-014",
+    "name": "Public Read-Only Documentation Feed",
+    "input": {
+      "target_users": 600,
+      "profile": {
+        "primary_language": "TypeScript", "frameworks": ["Next.js"], "databases": [],
+        "endpoints": [{"method": "GET", "path": "/api/docs/openapi.json", "file": "pages/api/docs.ts", "line": 10}]
+      }
+    },
+    "expected_endpoints": [{"path": "/api/docs/openapi.json", "method": "GET", "testable": true}],
+    "expected_test_plan": {"test_type": "load"},
+    "expected_output_structure": {"agent": "performance_testing"},
+    "evaluation_criteria": {"scenario": "load", "requires_k6_checks": true}
+  },
+  {
+    "id": "PERF-EVAL-015",
+    "name": "User Profile Settings Update PUT",
+    "input": {
+      "target_users": 80,
+      "profile": {
+        "primary_language": "Python", "frameworks": ["FastAPI"], "databases": ["PostgreSQL"],
+        "endpoints": [{"method": "PUT", "path": "/api/profile", "file": "app/profile.py", "line": 25}]
+      }
+    },
+    "expected_endpoints": [{"path": "/api/profile", "method": "PUT", "authentication_required": true}],
+    "expected_test_plan": {"test_type": "load"},
+    "expected_output_structure": {"agent": "performance_testing"},
+    "evaluation_criteria": {"scenario": "load", "requires_k6_checks": true}
+  },
+  {
+    "id": "PERF-EVAL-016",
+    "name": "Password Reset Initiation Rate Limit Check",
+    "input": {
+      "target_users": 50,
+      "profile": {
+        "primary_language": "Python", "frameworks": ["FastAPI"], "databases": ["Redis"],
+        "endpoints": [{"method": "POST", "path": "/auth/password-reset", "file": "app/auth.py", "line": 105}]
+      }
+    },
+    "expected_endpoints": [{"path": "/auth/password-reset", "method": "POST", "testable": true}],
+    "expected_test_plan": {"test_type": "load"},
+    "expected_output_structure": {"agent": "performance_testing"},
+    "evaluation_criteria": {"scenario": "load", "requires_k6_checks": true}
+  },
+  {
+    "id": "PERF-EVAL-017",
+    "name": "Batch Push Notification Dispatch",
+    "input": {
+      "target_users": 150,
+      "profile": {
+        "primary_language": "JavaScript", "frameworks": ["Express"], "databases": ["MongoDB"],
+        "endpoints": [{"method": "POST", "path": "/api/notifications/send-batch", "file": "src/notify.js", "line": 40}]
+      }
+    },
+    "expected_endpoints": [{"path": "/api/notifications/send-batch", "method": "POST", "testable": true}],
+    "expected_test_plan": {"test_type": "load"},
+    "expected_output_structure": {"agent": "performance_testing"},
+    "evaluation_criteria": {"scenario": "load", "requires_k6_checks": true}
+  },
+  {
+    "id": "PERF-EVAL-018",
+    "name": "Multi-Tenant Data Retrieval Route",
+    "input": {
+      "target_users": 400,
+      "profile": {
+        "primary_language": "Python", "frameworks": ["FastAPI"], "databases": ["PostgreSQL"],
+        "endpoints": [{"method": "GET", "path": "/api/tenants/{tenant_id}/dashboard", "file": "app/tenant.py", "line": 35}]
+      }
+    },
+    "expected_endpoints": [{"path": "/api/tenants/{tenant_id}/dashboard", "method": "GET", "authentication_required": true}],
+    "expected_test_plan": {"test_type": "stress"},
+    "expected_output_structure": {"agent": "performance_testing"},
+    "evaluation_criteria": {"scenario": "stress", "requires_k6_checks": true}
+  },
+  {
+    "id": "PERF-EVAL-019",
+    "name": "GraphQL Single Query / Mutation Root",
+    "input": {
+      "target_users": 250,
+      "profile": {
+        "primary_language": "TypeScript", "frameworks": ["NestJS"], "databases": ["PostgreSQL"],
+        "endpoints": [{"method": "POST", "path": "/graphql", "file": "src/graphql.ts", "line": 18}]
+      }
+    },
+    "expected_endpoints": [{"path": "/graphql", "method": "POST", "testable": true}],
+    "expected_test_plan": {"test_type": "load"},
+    "expected_output_structure": {"agent": "performance_testing"},
+    "evaluation_criteria": {"scenario": "load", "requires_k6_checks": true}
+  },
+  {
+    "id": "PERF-EVAL-020",
+    "name": "Live Event Ticket Reservation Surge",
+    "input": {
+      "target_users": 10000,
+      "profile": {
+        "primary_language": "Go", "frameworks": ["Fiber"], "databases": ["PostgreSQL", "Redis"],
+        "endpoints": [{"method": "POST", "path": "/api/tickets/reserve", "file": "handlers/tickets.go", "line": 50}]
+      }
+    },
+    "expected_endpoints": [{"path": "/api/tickets/reserve", "method": "POST", "authentication_required": true}],
+    "expected_test_plan": {"test_type": "stress"},
+    "expected_output_structure": {"agent": "performance_testing", "metrics_is_null": true},
+    "evaluation_criteria": {"scenario": "stress", "requires_k6_checks": true}
+  }
+]

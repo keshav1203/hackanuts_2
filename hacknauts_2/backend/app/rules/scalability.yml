@@ -1,0 +1,54 @@
+rules:
+  - id: java-thread-sleep
+    languages: [java]
+    severity: WARNING
+    message: Thread.sleep holds a request thread.
+    pattern: Thread.sleep(...)
+    metadata: { kind: blocking_sync_call, source: semgrep }
+  - id: java-find-all
+    languages: [java]
+    severity: WARNING
+    message: findAll loads every row.
+    pattern: $R.findAll()
+    metadata: { kind: unbounded_query, source: semgrep }
+  - id: java-query-in-loop
+    languages: [java]
+    severity: WARNING
+    message: Database call inside a loop.
+    patterns:
+      - pattern-inside: |
+          for (...) { ... }
+      - pattern-either:
+          - pattern: $R.findById(...)
+          - pattern: $S.executeQuery(...)
+          - pattern: $R.getOne(...)
+    metadata: { kind: n_plus_one, source: semgrep }
+  - id: go-query-in-loop
+    languages: [go]
+    severity: WARNING
+    message: Database call inside a loop.
+    patterns:
+      - pattern-inside: |
+          for ... { ... }
+      - pattern-either:
+          - pattern: $DB.Query(...)
+          - pattern: $DB.QueryRow(...)
+          - pattern: $DB.Exec(...)
+    metadata: { kind: n_plus_one, source: semgrep }
+  - id: php-query-in-loop
+    languages: [php]
+    severity: WARNING
+    message: Database call inside a loop.
+    patterns:
+      - pattern-inside: |
+          foreach (...) { ... }
+      - pattern-either:
+          - pattern: mysqli_query(...)
+          - pattern: $DB->query(...)
+    metadata: { kind: n_plus_one, source: semgrep }
+  - id: ruby-all-each
+    languages: [ruby]
+    severity: WARNING
+    message: Loads every row into memory.
+    pattern: $M.all.each(...)
+    metadata: { kind: unbounded_query, source: semgrep }

@@ -1,0 +1,382 @@
+[
+  {
+    "id": "OPT-EVAL-001",
+    "name": "Eliminate SQLAlchemy N+1 with selectinload",
+    "input": {
+      "profile": {"primary_language": "Python", "frameworks": ["FastAPI"], "databases": ["PostgreSQL"], "orms": ["SQLAlchemy"]},
+      "code_analysis_finding": {
+        "finding_id": "CA-001", "title": "Database query inside a loop", "category": "database", "severity": "high",
+        "file_path": "app/routers/users.py", "line_number": 45,
+        "evidence": "for user in users:\n    orders = db.query(Order).filter(Order.user_id == user.id).all()"
+      },
+      "performance_context": {"predicted_bottlenecks": ["Database connection pool exhaustion under load"]}
+    },
+    "expected_optimizations": [{
+      "optimization_id": "OPT-001", "priority": "high", "risk": "low", "file_path": "app/routers/users.py",
+      "required_patch_tokens": ["joinedload", "selectinload", "options", "join"]
+    }],
+    "expected_output_structure": {"agent": "optimization", "retest_required": true},
+    "evaluation_criteria": {"category": "database", "must_require_approval": true}
+  },
+  {
+    "id": "OPT-EVAL-002",
+    "name": "Convert Blocking Sleep to asyncio.sleep",
+    "input": {
+      "profile": {"primary_language": "Python", "frameworks": ["FastAPI"]},
+      "code_analysis_finding": {
+        "finding_id": "CA-002", "title": "Blocking call inside async code", "category": "code", "severity": "high",
+        "file_path": "app/routers/tasks.py", "line_number": 28,
+        "evidence": "time.sleep(5)"
+      },
+      "performance_context": {"predicted_bottlenecks": ["Event loop freezing stalls concurrent requests"]}
+    },
+    "expected_optimizations": [{
+      "optimization_id": "OPT-002", "priority": "high", "risk": "low", "file_path": "app/routers/tasks.py",
+      "required_patch_tokens": ["asyncio.sleep"]
+    }],
+    "expected_output_structure": {"agent": "optimization"},
+    "evaluation_criteria": {"category": "asynchronous processing", "must_require_approval": true}
+  },
+  {
+    "id": "OPT-EVAL-003",
+    "name": "Add Redis Caching to High-Read Catalog Route",
+    "input": {
+      "profile": {"primary_language": "Python", "frameworks": ["FastAPI"], "databases": ["PostgreSQL"], "cache": []},
+      "code_analysis_finding": {
+        "finding_id": "CA-003", "title": "Read endpoint without caching", "category": "code", "severity": "medium",
+        "file_path": "app/routers/catalog.py", "line_number": 15,
+        "evidence": "return db.query(CatalogItem).all()"
+      },
+      "performance_context": {"predicted_bottlenecks": ["Repetitive identical queries on hot catalog"]}
+    },
+    "expected_optimizations": [{
+      "optimization_id": "OPT-003", "priority": "high", "risk": "low", "file_path": "app/routers/catalog.py",
+      "required_patch_tokens": ["redis", "cache", "ttl"]
+    }],
+    "expected_output_structure": {"agent": "optimization"},
+    "evaluation_criteria": {"category": "caching", "must_require_approval": true}
+  },
+  {
+    "id": "OPT-EVAL-004",
+    "name": "Implement Keyset / Limit-Offset Pagination",
+    "input": {
+      "profile": {"primary_language": "Python", "frameworks": ["Django"], "databases": ["PostgreSQL"]},
+      "code_analysis_finding": {
+        "finding_id": "CA-004", "title": "Query returns every row", "category": "database", "severity": "medium",
+        "file_path": "sales/views.py", "line_number": 34,
+        "evidence": "orders = Order.objects.all()"
+      },
+      "performance_context": {"predicted_bottlenecks": ["Memory spike loading 100k rows into server memory"]}
+    },
+    "expected_optimizations": [{
+      "optimization_id": "OPT-004", "priority": "medium", "risk": "low", "file_path": "sales/views.py",
+      "required_patch_tokens": ["limit", "offset", "paginate", "page_size"]
+    }],
+    "expected_output_structure": {"agent": "optimization"},
+    "evaluation_criteria": {"category": "database query optimization", "must_require_approval": true}
+  },
+  {
+    "id": "OPT-EVAL-005",
+    "name": "Replace Sequential Awaits with Promise.all",
+    "input": {
+      "profile": {"primary_language": "TypeScript", "frameworks": ["NestJS"]},
+      "code_analysis_finding": {
+        "finding_id": "CA-005", "title": "Awaiting inside a loop runs calls one at a time", "category": "code", "severity": "medium",
+        "file_path": "src/services/billing.ts", "line_number": 80,
+        "evidence": "for (const invoice of invoices) { await charge(invoice); }"
+      },
+      "performance_context": {"predicted_bottlenecks": ["Linear cumulative latency growth"]}
+    },
+    "expected_optimizations": [{
+      "optimization_id": "OPT-005", "priority": "medium", "risk": "low", "file_path": "src/services/billing.ts",
+      "required_patch_tokens": ["Promise.all", "map"]
+    }],
+    "expected_output_structure": {"agent": "optimization"},
+    "evaluation_criteria": {"category": "asynchronous processing", "must_require_approval": true}
+  },
+  {
+    "id": "OPT-EVAL-006",
+    "name": "Replace O(N^2) Nested Loop with Dict Lookup",
+    "input": {
+      "profile": {"primary_language": "Python", "frameworks": ["Flask"]},
+      "code_analysis_finding": {
+        "finding_id": "CA-006", "title": "Nested loops", "category": "code", "severity": "low",
+        "file_path": "app/reconciliation.py", "line_number": 61,
+        "evidence": "for txn in transactions:\n    for log_item in logs:\n        if txn.id == log_item.txn_id:"
+      },
+      "performance_context": {"predicted_bottlenecks": ["CPU saturation on list matching"]}
+    },
+    "expected_optimizations": [{
+      "optimization_id": "OPT-006", "priority": "low", "risk": "low", "file_path": "app/reconciliation.py",
+      "required_patch_tokens": ["{", "dict", "map", "set"]
+    }],
+    "expected_output_structure": {"agent": "optimization"},
+    "evaluation_criteria": {"category": "efficient algorithms", "must_require_approval": true}
+  },
+  {
+    "id": "OPT-EVAL-007",
+    "name": "Parameterize Dynamic String Concatenated SQL",
+    "input": {
+      "profile": {"primary_language": "Python", "frameworks": ["Flask"], "databases": ["PostgreSQL"]},
+      "code_analysis_finding": {
+        "finding_id": "CA-007", "title": "SQL built from strings", "category": "database", "severity": "high",
+        "file_path": "app/db.py", "line_number": 40,
+        "evidence": "query = f\"SELECT * FROM users WHERE status = '{status}' AND org_id = {org_id}\""
+      },
+      "performance_context": {"predicted_bottlenecks": ["Cache misses on prepared query statements"]}
+    },
+    "expected_optimizations": [{
+      "optimization_id": "OPT-007", "priority": "high", "risk": "low", "file_path": "app/db.py",
+      "required_patch_tokens": ["%s", "?", "params", "cursor.execute"]
+    }],
+    "expected_output_structure": {"agent": "optimization"},
+    "evaluation_criteria": {"category": "database query optimization", "must_require_approval": true}
+  },
+  {
+    "id": "OPT-EVAL-008",
+    "name": "Batch Insert Records instead of Row-by-Row",
+    "input": {
+      "profile": {"primary_language": "Python", "frameworks": ["FastAPI"], "databases": ["PostgreSQL"], "orms": ["SQLAlchemy"]},
+      "code_analysis_finding": {
+        "finding_id": "CA-008", "title": "Serial database commits in loop", "category": "database", "severity": "high",
+        "file_path": "app/ingest.py", "line_number": 48,
+        "evidence": "for row in csv_rows:\n    db.add(Record(**row))\n    db.commit()"
+      },
+      "performance_context": {"predicted_bottlenecks": ["Excessive disk WAL flushes"]}
+    },
+    "expected_optimizations": [{
+      "optimization_id": "OPT-008", "priority": "high", "risk": "low", "file_path": "app/ingest.py",
+      "required_patch_tokens": ["bulk_insert_mappings", "bulk_save_objects", "add_all", "bulk"]
+    }],
+    "expected_output_structure": {"agent": "optimization"},
+    "evaluation_criteria": {"category": "database query optimization", "must_require_approval": true}
+  },
+  {
+    "id": "OPT-EVAL-009",
+    "name": "Move Synchronous PDF Generation to Celery Task",
+    "input": {
+      "profile": {"primary_language": "Python", "frameworks": ["FastAPI"], "queues": ["celery"]},
+      "code_analysis_finding": {
+        "finding_id": "CA-009", "title": "Heavy work runs inside requests", "category": "infrastructure", "severity": "low",
+        "file_path": "app/export.py", "line_number": 22,
+        "evidence": "generate_large_pdf()\nsend_email()"
+      },
+      "performance_context": {"predicted_bottlenecks": ["HTTP request timeout on heavy load"]}
+    },
+    "expected_optimizations": [{
+      "optimization_id": "OPT-009", "priority": "high", "risk": "medium", "file_path": "app/export.py",
+      "required_patch_tokens": ["delay", "celery", "task"]
+    }],
+    "expected_output_structure": {"agent": "optimization"},
+    "evaluation_criteria": {"category": "background job processing", "must_require_approval": true}
+  },
+  {
+    "id": "OPT-EVAL-010",
+    "name": "Safely Release Database Connections via Context Manager",
+    "input": {
+      "profile": {"primary_language": "Python", "frameworks": ["FastAPI"], "databases": ["PostgreSQL"]},
+      "code_analysis_finding": {
+        "finding_id": "CA-010", "title": "Unclosed database session holding connection", "category": "database", "severity": "high",
+        "file_path": "app/routers/data.py", "line_number": 33,
+        "evidence": "db = SessionLocal()\nres = db.query(Item).first()"
+      },
+      "performance_context": {"predicted_bottlenecks": ["Pool exhausted within 100 requests"]}
+    },
+    "expected_optimizations": [{
+      "optimization_id": "OPT-010", "priority": "high", "risk": "low", "file_path": "app/routers/data.py",
+      "required_patch_tokens": ["with", "finally", "close", "yield"]
+    }],
+    "expected_output_structure": {"agent": "optimization"},
+    "evaluation_criteria": {"category": "connection pooling", "must_require_approval": true}
+  },
+  {
+    "id": "OPT-EVAL-011",
+    "name": "Stream File Upload in Chunks",
+    "input": {
+      "profile": {"primary_language": "Python", "frameworks": ["FastAPI"]},
+      "code_analysis_finding": {
+        "finding_id": "CA-011", "title": "Unbounded file read in request", "category": "code", "severity": "medium",
+        "file_path": "app/routers/upload.py", "line_number": 17,
+        "evidence": "content = await file.read()"
+      },
+      "performance_context": {"predicted_bottlenecks": ["Out of Memory error on 5 concurrent uploads"]}
+    },
+    "expected_optimizations": [{
+      "optimization_id": "OPT-011", "priority": "medium", "risk": "low", "file_path": "app/routers/upload.py",
+      "required_patch_tokens": ["chunk", "read(1024", "stream"]
+    }],
+    "expected_output_structure": {"agent": "optimization"},
+    "evaluation_criteria": {"category": "memory optimization", "must_require_approval": true}
+  },
+  {
+    "id": "OPT-EVAL-012",
+    "name": "Project Specific Columns instead of SELECT *",
+    "input": {
+      "profile": {"primary_language": "Python", "frameworks": ["Flask"], "databases": ["PostgreSQL"]},
+      "code_analysis_finding": {
+        "finding_id": "CA-012", "title": "SELECT * fetches unneeded columns", "category": "database", "severity": "low",
+        "file_path": "app/analytics.py", "line_number": 29,
+        "evidence": "SELECT * FROM clickstream_events WHERE org_id = %s"
+      },
+      "performance_context": {"predicted_bottlenecks": ["Heavy network bandwidth transfer"]}
+    },
+    "expected_optimizations": [{
+      "optimization_id": "OPT-012", "priority": "low", "risk": "low", "file_path": "app/analytics.py",
+      "required_patch_tokens": ["SELECT id", "SELECT timestamp"]
+    }],
+    "expected_output_structure": {"agent": "optimization"},
+    "evaluation_criteria": {"category": "database query optimization", "must_require_approval": true}
+  },
+  {
+    "id": "OPT-EVAL-013",
+    "name": "Index Foreign Key Columns in Relational Schema",
+    "input": {
+      "profile": {"primary_language": "Python", "frameworks": ["FastAPI"], "databases": ["PostgreSQL"], "orms": ["SQLAlchemy"]},
+      "code_analysis_finding": {
+        "finding_id": "CA-013", "title": "Full table scan on missing foreign key index", "category": "database", "severity": "high",
+        "file_path": "app/models/orders.py", "line_number": 18,
+        "evidence": "user_id = Column(Integer, ForeignKey('users.id'))"
+      },
+      "performance_context": {"predicted_bottlenecks": ["Slow join operations during order lookup"]}
+    },
+    "expected_optimizations": [{
+      "optimization_id": "OPT-013", "priority": "high", "risk": "low", "file_path": "app/models/orders.py",
+      "required_patch_tokens": ["index=True", "CREATE INDEX"]
+    }],
+    "expected_output_structure": {"agent": "optimization"},
+    "evaluation_criteria": {"category": "database indexing", "must_require_approval": true}
+  },
+  {
+    "id": "OPT-EVAL-014",
+    "name": "Implement Trigram GIN Index for LIKE Queries",
+    "input": {
+      "profile": {"primary_language": "Python", "frameworks": ["Flask"], "databases": ["PostgreSQL"]},
+      "code_analysis_finding": {
+        "finding_id": "CA-014", "title": "LIKE with a leading wildcard", "category": "database", "severity": "medium",
+        "file_path": "app/search.py", "line_number": 19,
+        "evidence": "SELECT id, name FROM items WHERE name LIKE %s"
+      },
+      "performance_context": {"predicted_bottlenecks": ["Full sequential table scan on search queries"]}
+    },
+    "expected_optimizations": [{
+      "optimization_id": "OPT-014", "priority": "medium", "risk": "low", "file_path": "app/search.py",
+      "required_patch_tokens": ["gin_trgm_ops", "gin", "pg_trgm", "index"]
+    }],
+    "expected_output_structure": {"agent": "optimization"},
+    "evaluation_criteria": {"category": "database indexing", "must_require_approval": true}
+  },
+  {
+    "id": "OPT-EVAL-015",
+    "name": "Add LRU Cache with Maxsize and TTL Eviction",
+    "input": {
+      "profile": {"primary_language": "Python", "frameworks": ["FastAPI"]},
+      "code_analysis_finding": {
+        "finding_id": "CA-015", "title": "In-memory cache leak without eviction", "category": "code", "severity": "medium",
+        "file_path": "app/cache.py", "line_number": 10,
+        "evidence": "CACHE_STORE = {}"
+      },
+      "performance_context": {"predicted_bottlenecks": ["Resident memory growth linearly with user requests"]}
+    },
+    "expected_optimizations": [{
+      "optimization_id": "OPT-015", "priority": "medium", "risk": "low", "file_path": "app/cache.py",
+      "required_patch_tokens": ["lru_cache", "TTLCache", "cachetools", "maxsize"]
+    }],
+    "expected_output_structure": {"agent": "optimization"},
+    "evaluation_criteria": {"category": "memory optimization", "must_require_approval": true}
+  },
+  {
+    "id": "OPT-EVAL-016",
+    "name": "Consolidate Multiple Network Calls with Batch HTTP Client",
+    "input": {
+      "profile": {"primary_language": "Python", "frameworks": ["FastAPI"]},
+      "code_analysis_finding": {
+        "finding_id": "CA-016", "title": "HTTP requests inside a loop", "category": "code", "severity": "medium",
+        "file_path": "app/clients/enrichment.py", "line_number": 52,
+        "evidence": "for target in targets: requests.get(f'https://api.partner.com/v1/{target}')"
+      },
+      "performance_context": {"predicted_bottlenecks": ["Hundreds of millisecond network roundtrips"]}
+    },
+    "expected_optimizations": [{
+      "optimization_id": "OPT-016", "priority": "medium", "risk": "low", "file_path": "app/clients/enrichment.py",
+      "required_patch_tokens": ["httpx.AsyncClient", "asyncio.gather", "batch"]
+    }],
+    "expected_output_structure": {"agent": "optimization"},
+    "evaluation_criteria": {"category": "asynchronous processing", "must_require_approval": true}
+  },
+  {
+    "id": "OPT-EVAL-017",
+    "name": "Atomic Database F-Expressions for Concurrent Counters",
+    "input": {
+      "profile": {"primary_language": "Python", "frameworks": ["Django"], "databases": ["PostgreSQL"]},
+      "code_analysis_finding": {
+        "finding_id": "CA-017", "title": "Check-then-act race condition in inventory decrement", "category": "code", "severity": "high",
+        "file_path": "store/views.py", "line_number": 55,
+        "evidence": "item = Item.objects.get(id=item_id)\nif item.stock > 0:\n    item.stock -= 1\n    item.save()"
+      },
+      "performance_context": {"predicted_bottlenecks": ["Lost update anomalies during concurrency"]}
+    },
+    "expected_optimizations": [{
+      "optimization_id": "OPT-017", "priority": "high", "risk": "low", "file_path": "store/views.py",
+      "required_patch_tokens": ["F('stock')", "select_for_update", "transaction.atomic"]
+    }],
+    "expected_output_structure": {"agent": "optimization"},
+    "evaluation_criteria": {"category": "database query optimization", "must_require_approval": true}
+  },
+  {
+    "id": "OPT-EVAL-018",
+    "name": "Enable GZip Compression on Large JSON Responses",
+    "input": {
+      "profile": {"primary_language": "Python", "frameworks": ["FastAPI"]},
+      "code_analysis_finding": {
+        "finding_id": "CA-018", "title": "Large uncompressed responses", "category": "code", "severity": "low",
+        "file_path": "app/main.py", "line_number": 15,
+        "evidence": "Payloads exceeding 2MB returned without compression"
+      },
+      "performance_context": {"predicted_bottlenecks": ["Transfer latency on mobile networks"]}
+    },
+    "expected_optimizations": [{
+      "optimization_id": "OPT-018", "priority": "low", "risk": "low", "file_path": "app/main.py",
+      "required_patch_tokens": ["GZipMiddleware", "add_middleware"]
+    }],
+    "expected_output_structure": {"agent": "optimization"},
+    "evaluation_criteria": {"category": "api response optimization", "must_require_approval": true}
+  },
+  {
+    "id": "OPT-EVAL-019",
+    "name": "Tune SQLAlchemy Connection Pool Size and Recycler",
+    "input": {
+      "profile": {"primary_language": "Python", "frameworks": ["FastAPI"], "databases": ["PostgreSQL"], "orms": ["SQLAlchemy"]},
+      "code_analysis_finding": {
+        "finding_id": "CA-019", "title": "Default connection pool settings on high concurrency app", "category": "database", "severity": "medium",
+        "file_path": "app/db.py", "line_number": 10,
+        "evidence": "engine = create_engine(DATABASE_URL)"
+      },
+      "performance_context": {"predicted_bottlenecks": ["QueuePool limit exceeded under 500 VUs"]}
+    },
+    "expected_optimizations": [{
+      "optimization_id": "OPT-019", "priority": "high", "risk": "low", "file_path": "app/db.py",
+      "required_patch_tokens": ["pool_size", "max_overflow", "pool_recycle"]
+    }],
+    "expected_output_structure": {"agent": "optimization"},
+    "evaluation_criteria": {"category": "connection pooling", "must_require_approval": true}
+  },
+  {
+    "id": "OPT-EVAL-020",
+    "name": "Precompile Regex Patterns Outside Hot Loops",
+    "input": {
+      "profile": {"primary_language": "Python", "frameworks": ["FastAPI"]},
+      "code_analysis_finding": {
+        "finding_id": "CA-020", "title": "Regular expression compilation in per-request loop", "category": "code", "severity": "low",
+        "file_path": "app/validators.py", "line_number": 30,
+        "evidence": "for line in text:\n    if re.search(r'^[a-z0-9_-]{3,16}$', line):"
+      },
+      "performance_context": {"predicted_bottlenecks": ["CPU cycles spent recompiling bytecode"]}
+    },
+    "expected_optimizations": [{
+      "optimization_id": "OPT-020", "priority": "low", "risk": "low", "file_path": "app/validators.py",
+      "required_patch_tokens": ["re.compile"]
+    }],
+    "expected_output_structure": {"agent": "optimization"},
+    "evaluation_criteria": {"category": "efficient algorithms", "must_require_approval": true}
+  }
+]
