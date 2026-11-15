@@ -54,12 +54,12 @@ _client: Groq | None = None
 _resolved_model_cache: dict[str, str] = {}
 
 PREFERRED_MODELS = [
+    "openai/gpt-oss-20b",
+    "openai/gpt-oss-120b",
     "qwen/qwen3.8-27b",
     "llama-3.3-70b-versatile",
     "llama-3.1-70b-versatile",
     "llama-3.1-8b-instant",
-    "openai/gpt-oss-120b",
-    "openai/gpt-oss-20b",
 ]
 
 
@@ -337,8 +337,12 @@ def groq_chat(
         return None
 
     temp = temperature if temperature is not None else settings.groq_temperature
-    max_retries = max(5, settings.groq_max_retries)
-    delay = 3.0
+
+    # Build candidate models to try: requested model, then remaining preferred models
+    candidate_models = [model]
+    for m in PREFERRED_MODELS:
+        if m not in candidate_models:
+            candidate_models.append(m)
 
     # Sanitize messages to avoid prompt leakage
     sanitized_messages = [
@@ -346,42 +350,34 @@ def groq_chat(
         for m in messages
     ]
 
-    for attempt in range(1, max_retries + 1):
-        try:
-            raw = _do_request(client, sanitized_messages, model, schema_cls, temp, max_tokens)
-            if schema_cls is not None:
-                return _parse(raw, schema_cls)
-            return raw
-        except RateLimitError as exc:
-            if attempt >= max_retries:
-                log.error("Groq rate limit reached after %d attempts on model %s", attempt, model)
-                return None
-            wait_time = _parse_retry_delay(exc, delay)
-            wait_time = min(65.0, max(wait_time, delay))
-            log.warning("Groq rate limit on attempt %d/%d; waiting %.1fs for token reset", attempt, max_retries, wait_time)
-            time.sleep(wait_time)
-            delay = min(25.0, delay * 1.5)
-        except (BadRequestError, json.JSONDecodeError) as parse_err:
-            log.warning("JSON parse issue on attempt %d/%d for model %s: %s", attempt, max_retries, model, str(parse_err)[:150])
-            if attempt >= max_retries:
-                return None
-            time.sleep(delay)
-            delay = min(15.0, delay * 1.5)
-        except (APIConnectionError, APIStatusError) as exc:
-            if attempt >= max_retries:
-                log.error("Groq API error after %d attempts on model %s: %s", attempt, model, type(exc).__name__)
-                return None
-            log.warning("Groq API error attempt %d/%d (%s); retrying in %.1fs", attempt, max_retries, type(exc).__name__, delay)
-            time.sleep(delay)
-            delay *= 2
-        except ValidationError as val_err:
-            log.warning("Schema validation failed on attempt %d/%d for model %s: %s", attempt, max_retries, model, str(val_err)[:200])
-            if attempt >= 2:
-                return None
-            time.sleep(2.0)
-        except Exception as exc:
-            log.exception("Unexpected error in groq_chat (model=%s): %s", model, redact_secrets(str(exc)))
-            return None
+    for curr_model in candidate_models:
+        for attempt in range(1, 3):
+            try:
+                raw = _do_request(client, sanitized_messages, curr_model, schema_cls, temp, max_tokens)
+                if schema_cls is not None:
+                    return _parse(raw, schema_cls)
+                return raw
+            except RateLimitError as exc:
+                log.warning("Model %s rate limited (%s); switching to fallback model", curr_model, str(exc)[:120])
+                break  # Break out to try next candidate model immediately without 65s wait
+            except (BadRequestError, json.JSONDecodeError) as parse_err:
+                log.warning("JSON parse issue for model %s: %s", curr_model, str(parse_err)[:150])
+                if attempt >= 2:
+                    break
+                time.sleep(1.0)
+            except (APIConnectionError, APIStatusError) as exc:
+                log.warning("Groq API error for model %s: %s", curr_model, type(exc).__name__)
+                if attempt >= 2:
+                    break
+                time.sleep(1.0)
+            except ValidationError as val_err:
+                log.warning("Schema validation failed for model %s: %s", curr_model, str(val_err)[:150])
+                break
+            except Exception as exc:
+                log.exception("Unexpected error in groq_chat (model=%s): %s", curr_model, redact_secrets(str(exc)))
+                break
+
+    log.warning("All candidate models failed or rate limited; activating fallback results")
     return None
 
 

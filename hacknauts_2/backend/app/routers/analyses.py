@@ -17,7 +17,7 @@ from ..schemas import AnalysisIn, QueryIn, QueryOut, ReportListItem, ReportOut
 from ..security import current_user
 from ..services.git_ops import normalize_repo_url
 from ..services.groq_client import get_groq_client, resolve_model
-from ..services.k6_service import execute_k6
+from ..services.k6_service import execute_k6, execute_performance_load_test
 
 log = logging.getLogger(__name__)
 router = APIRouter()
@@ -136,45 +136,13 @@ def run_report_load_test(report_id: int, user: User = Depends(current_user), db:
     perf = report.performance_analysis or {}
     script = perf.get("k6_script") or "export default function() {}"
 
-    metrics, notice = execute_k6(script=script, target_users=report.target_users)
+    metrics, curve, notice = execute_performance_load_test(
+        script=script,
+        target_users=report.target_users,
+        base_url="http://localhost:8000",
+    )
     if not metrics:
         raise HTTPException(500, f"Load test execution failed: {notice}")
-
-    # Build before/after curve points for charting
-    target = report.target_users
-    curve = []
-    user_steps = [
-        max(1, int(target * 0.1)),
-        max(5, int(target * 0.25)),
-        max(10, int(target * 0.5)),
-        max(20, int(target * 0.75)),
-        target,
-    ]
-    base_ms = metrics.avg_response_ms
-    base_failed = max(0.05, metrics.failed_pct * 0.15)
-    for u in sorted(set(user_steps)):
-        ratio = u / max(1, target)
-        before_ms = round(base_ms * (1 + ratio * 1.5), 1)
-        after_ms = round(base_ms * (0.6 + ratio * 0.3), 1)
-        before_err = round(min(30.0, max(0.1, metrics.failed_pct + ratio * 5.0)), 1)
-        after_err = round(min(10.0, max(0.05, base_failed + ratio * 1.0)), 1)
-        before_cpu = round(min(98.0, max(18.0, 22.0 + ratio * 68.0)), 1)
-        after_cpu = round(min(65.0, max(12.0, 14.0 + ratio * 28.0)), 1)
-        before_mem = round(160.0 + ratio * 620.0, 1)
-        after_mem = round(110.0 + ratio * 160.0, 1)
-        curve.append({
-            "users": u,
-            "beforeMs": before_ms,
-            "afterMs": after_ms,
-            "beforeErr": before_err,
-            "afterErr": after_err,
-            "beforeCpu": before_cpu,
-            "afterCpu": after_cpu,
-            "beforeMem": before_mem,
-            "afterMem": after_mem,
-            "beforeMemPct": round(min(100.0, (before_mem / 1024.0) * 100.0), 1),
-            "afterMemPct": round(min(100.0, (after_mem / 1024.0) * 100.0), 1),
-        })
 
     report.load_test = {
         "executed_at": now().isoformat(),

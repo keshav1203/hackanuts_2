@@ -7,7 +7,7 @@ from sqlalchemy import select
 
 from .config import settings
 from .db import Base, SessionLocal, engine
-from .models import User
+from .models import Report, User, now
 from .routers import analyses, auth
 from .security import hash_password
 from .services.groq_client import test_groq_connection
@@ -16,11 +16,20 @@ from .services.groq_client import test_groq_connection
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     Base.metadata.create_all(engine)
-    if settings.enable_demo:
-        with SessionLocal() as db:
+    with SessionLocal() as db:
+        if settings.enable_demo:
             if not db.scalar(select(User).where(User.email == settings.demo_email)):
                 db.add(User(email=settings.demo_email, password_hash=hash_password(settings.demo_password)))
                 db.commit()
+
+        # Clean up stale running/queued analyses from previous process terminations
+        stale = db.scalars(select(Report).where(Report.status.in_(("running", "queued")))).all()
+        for r in stale:
+            r.status = "failed"
+            r.error = "Analysis interrupted by server restart."
+            r.finished_at = now()
+        if stale:
+            db.commit()
     yield
 
 

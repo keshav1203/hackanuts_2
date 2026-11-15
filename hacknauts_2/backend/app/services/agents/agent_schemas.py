@@ -381,6 +381,7 @@ class AgentState(TypedDict, total=False):
     code_analysis_result: Optional[CodeAnalysisResult]
     performance_result: Optional[PerformanceResult]
     optimization_result: Optional[OptimizationResult]
+    load_test: Optional[dict]
     # Legacy fields kept for backward compatibility with pipeline.py
     findings: list[dict]
     summary: str

@@ -10,6 +10,7 @@ from .services.ai_agent import run_ai_agent
 from .services.detect import detect_stack
 from .services.fsutil import load_repo
 from .services.git_ops import clone_repo
+from .services.k6_service import execute_performance_load_test, execute_k6
 from .services.scanner import scan_repository
 
 log = logging.getLogger(__name__)
@@ -66,6 +67,46 @@ def run_pipeline(report_id: int) -> None:
             report.performance_analysis = result.get("performance")
             report.optimization = result.get("optimization")
             report.agent_errors = result.get("agent_errors") or []
+            report.load_test = result.get("load_test")
+
+            # Try to run real k6 load test when the k6 binary is available; fall back to the simulated performance test otherwise.
+            if not report.load_test and report.performance_analysis:
+                perf = report.performance_analysis
+                script = perf.get("k6_script") or ""
+                # First attempt real execution via k6 CLI
+                metrics_real, notice_real = execute_k6(
+                    script=script,
+                    base_url="http://localhost:8000",
+                    target_users=report.target_users,
+                )
+                if metrics_real:
+                    report.load_test = {
+                        "executed_at": now().isoformat(),
+                        "notice": notice_real,
+                        "metrics": metrics_real.model_dump(),
+                        "curve": [],
+                    }
+                    perf["execution_status"] = "completed"
+                    perf["metrics"] = metrics_real.model_dump()
+                    report.performance_analysis = perf
+                else:
+                    # Fallback to empirical simulation when k6 is not present
+                    metrics, curve, notice = execute_performance_load_test(
+                        script=script,
+                        target_users=report.target_users,
+                        base_url="http://localhost:8000",
+                    )
+                    if metrics:
+                        report.load_test = {
+                            "executed_at": now().isoformat(),
+                            "notice": notice,
+                            "metrics": metrics.model_dump(),
+                            "curve": curve,
+                        }
+                        perf["execution_status"] = "completed"
+                        perf["metrics"] = metrics.model_dump()
+                        report.performance_analysis = perf
+
             report.status, report.stage = "done", "Done"
         except AnalysisError as e:
             report.status, report.error = "failed", str(e)

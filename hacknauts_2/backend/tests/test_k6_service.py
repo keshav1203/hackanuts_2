@@ -2,6 +2,7 @@ import pytest
 
 from app.services.k6_service import (
     execute_k6,
+    execute_performance_load_test,
     validate_k6_script,
     validate_target_url,
 )
@@ -57,3 +58,23 @@ def test_execute_k6_simulation():
     assert metrics.avg_response_ms > 0
     assert metrics.p95_ms >= metrics.p50_ms
     assert metrics.total_requests > 0
+
+
+def test_execute_performance_load_test_curve_discovery():
+    script = "export default function () { http.get('http://localhost:8000/health'); }"
+    metrics, curve, notice = execute_performance_load_test(script, target_users=40)
+    assert metrics is not None
+    assert metrics.virtual_users == 40
+    assert len(curve) >= 3
+
+    # Verify that telemetry curves are discovered through real testing
+    for pt in curve:
+        assert "users" in pt
+        assert "beforeMs" in pt and pt["beforeMs"] > 0
+        assert "afterMs" in pt and pt["afterMs"] > 0
+        assert "beforeErr" in pt
+        assert "afterErr" in pt
+        assert "beforeCpu" in pt and pt["beforeCpu"] > 0
+        assert "afterCpu" in pt and pt["afterCpu"] > 0
+        assert "beforeMem" in pt and pt["beforeMem"] > 0
+        assert "afterMem" in pt and pt["afterMem"] > 0

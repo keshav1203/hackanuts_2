@@ -32,6 +32,7 @@ from .agents.agent_schemas import AgentState, CodeAnalysisResult, OptimizationRe
 from .agents.code_analysis_agent import run_code_analysis_agent
 from .agents.optimization_agent import run_optimization_agent
 from .agents.performance_agent import run_performance_agent
+from .k6_service import execute_performance_load_test
 
 log = logging.getLogger(__name__)
 
@@ -79,6 +80,54 @@ def performance_node(state: AgentState) -> AgentState:
     if "performance_result" in out and "performance_analysis_result" not in out:
         out["performance_analysis_result"] = out["performance_result"]
     return out
+
+
+def load_test_node(state: AgentState) -> AgentState:
+    """Execute empirical performance testing across concurrency steps to discover telemetry curves."""
+    cb = state.get("stage_callback")
+    if cb:
+        try:
+            cb("Executing Performance & Load Testing")
+        except Exception:
+            pass
+
+    perf_res = state.get("performance_result")
+    profile = state.get("profile") or state.get("repository_profile") or {}
+    target_users = profile.get("target_users", 50)
+    script = getattr(perf_res, "k6_script", None) if perf_res else None
+    if not script and isinstance(perf_res, dict):
+        script = perf_res.get("k6_script")
+    if not script:
+        script = "export default function() {}"
+
+    try:
+        metrics, curve, notice = execute_performance_load_test(
+            script=script,
+            target_users=target_users,
+            base_url="http://localhost:8000",
+        )
+        if metrics:
+            if perf_res:
+                if hasattr(perf_res, "metrics"):
+                    perf_res.metrics = metrics
+                    perf_res.execution_status = "completed"
+                elif isinstance(perf_res, dict):
+                    perf_res["metrics"] = metrics.model_dump()
+                    perf_res["execution_status"] = "completed"
+
+            state["load_test"] = {
+                "executed_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                "notice": notice,
+                "metrics": metrics.model_dump(),
+                "curve": curve,
+            }
+    except Exception as exc:
+        log.exception("Empirical load test execution failed: %s", exc)
+        errors = list(state.get("errors") or [])
+        errors.append(f"load_test: {exc}")
+        state["errors"] = errors
+
+    return state
 
 
 def optimization_node(state: AgentState) -> AgentState:
@@ -151,12 +200,14 @@ def _build_graph() -> object:
     g = StateGraph(AgentState)
     g.add_node("code_analysis", code_analysis_node)
     g.add_node("performance", performance_node)
+    g.add_node("load_test", load_test_node)
     g.add_node("optimization", optimization_node)
     g.add_node("combined_report", combined_report_node)
 
     g.add_edge(START, "code_analysis")
     g.add_edge("code_analysis", "performance")
-    g.add_edge("performance", "optimization")
+    g.add_edge("performance", "load_test")
+    g.add_edge("load_test", "optimization")
     g.add_edge("optimization", "combined_report")
     g.add_edge("combined_report", END)
 
@@ -225,6 +276,7 @@ def run_ai_agent(
         "code_analysis": code_res.model_dump() if code_res is not None else None,
         "performance": perf_res.model_dump() if perf_res is not None else None,
         "optimization": opt_res.model_dump() if opt_res is not None else None,
+        "load_test": out.get("load_test"),
         "agent_errors": out.get("errors", []),
         "execution_status": out.get("execution_status", "completed"),
     }
