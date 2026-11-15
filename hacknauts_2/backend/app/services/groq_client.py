@@ -238,7 +238,7 @@ def _do_request(
 ) -> dict:
     """Make the actual API call. Returns parsed JSON dict from the response."""
     resolved_model = resolve_model(model)
-    safe_max_tokens = min(max_tokens, 500)
+    safe_max_tokens = min(max_tokens, 380)
 
     if schema_cls is not None:
         raw_schema = schema_cls.model_json_schema()
@@ -376,9 +376,9 @@ def groq_chat(
             delay *= 2
         except ValidationError as val_err:
             log.warning("Schema validation failed on attempt %d/%d for model %s: %s", attempt, max_retries, model, str(val_err)[:200])
-            if attempt >= max_retries:
+            if attempt >= 2:
                 return None
-            time.sleep(1.0)
+            time.sleep(2.0)
         except Exception as exc:
             log.exception("Unexpected error in groq_chat (model=%s): %s", model, redact_secrets(str(exc)))
             return None

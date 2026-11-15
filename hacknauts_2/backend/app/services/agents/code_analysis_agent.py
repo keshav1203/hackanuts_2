@@ -229,7 +229,7 @@ def run_code_analysis_agent(state: AgentState) -> AgentState:
         model=settings.groq_code_model,
         schema_cls=CodeAnalysisResult,
         temperature=settings.groq_temperature,
-        max_tokens=480,
+        max_tokens=360,
     )
 
     if result is None:

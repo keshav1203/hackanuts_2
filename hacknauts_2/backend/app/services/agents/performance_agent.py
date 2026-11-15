@@ -184,7 +184,7 @@ def run_performance_agent(state: AgentState) -> AgentState:
         model=settings.groq_performance_model,
         schema_cls=PerformanceResult,
         temperature=settings.groq_temperature,
-        max_tokens=480,
+        max_tokens=360,
     )
 
     if result is None:

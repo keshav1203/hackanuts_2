@@ -63,29 +63,63 @@ def _build_user_message(
     databases = ", ".join(profile.get("databases", [])) or "none"
 
     code_findings_summary = []
-    if code_res and code_res.findings:
-        for f in code_res.findings[:2]:
-            code_findings_summary.append({
-                "id": f.finding_id,
-                "title": f.title,
-                "category": f.category,
-                "severity": f.severity,
-                "file": f.file_path,
-                "line": f.line_number,
-                "evidence": redact_secrets(f.evidence[:200]),
-                "explanation": f.explanation,
-                "recommendation": f.recommendation,
-            })
+    if code_res:
+        raw_findings = getattr(code_res, "findings", None)
+        if raw_findings is None and isinstance(code_res, dict):
+            raw_findings = code_res.get("findings")
+        elif raw_findings is None and isinstance(code_res, list):
+            raw_findings = code_res
+
+        for f in (raw_findings or [])[:2]:
+            if isinstance(f, dict):
+                code_findings_summary.append({
+                    "id": f.get("finding_id", f.get("id", "F1")),
+                    "title": f.get("title", ""),
+                    "category": f.get("category", f.get("area", "code")),
+                    "severity": f.get("severity", "medium"),
+                    "file": f.get("file_path", f.get("file", "")),
+                    "line": f.get("line_number", f.get("line", 0)),
+                    "evidence": redact_secrets(str(f.get("evidence", f.get("snippet", "")))[:200]),
+                    "explanation": f.get("explanation", f.get("why", "")),
+                    "recommendation": f.get("recommendation", f.get("suggested_fix", "")),
+                })
+            else:
+                code_findings_summary.append({
+                    "id": getattr(f, "finding_id", getattr(f, "id", "F1")),
+                    "title": getattr(f, "title", ""),
+                    "category": getattr(f, "category", "code"),
+                    "severity": getattr(f, "severity", "medium"),
+                    "file": getattr(f, "file_path", ""),
+                    "line": getattr(f, "line_number", 0),
+                    "evidence": redact_secrets(str(getattr(f, "evidence", ""))[:200]),
+                    "explanation": getattr(f, "explanation", ""),
+                    "recommendation": getattr(f, "recommendation", ""),
+                })
 
     perf_summary = {}
     if perf_res:
+        plan = getattr(perf_res, "test_plan", None)
+        if plan is None and isinstance(perf_res, dict):
+            plan = perf_res.get("test_plan", {})
+        metrics = getattr(perf_res, "metrics", None)
+        if metrics is None and isinstance(perf_res, dict):
+            metrics = perf_res.get("metrics")
+
+        bottlenecks = getattr(perf_res, "bottlenecks", None)
+        if bottlenecks is None and isinstance(perf_res, dict):
+            bottlenecks = perf_res.get("bottlenecks", [])
+
+        warnings = getattr(perf_res, "warnings", None)
+        if warnings is None and isinstance(perf_res, dict):
+            warnings = perf_res.get("warnings", [])
+
         perf_summary = {
-            "test_type": perf_res.test_plan.test_type,
-            "virtual_users": perf_res.test_plan.virtual_users,
-            "predicted_bottlenecks": perf_res.bottlenecks,
-            "warnings": perf_res.warnings,
-            "has_real_metrics": perf_res.metrics is not None,
-            "metrics": perf_res.metrics.model_dump() if perf_res.metrics else "Pending execution",
+            "test_type": getattr(plan, "test_type", "load") if hasattr(plan, "test_type") else (plan.get("test_type", "load") if isinstance(plan, dict) else "load"),
+            "virtual_users": getattr(plan, "virtual_users", 50) if hasattr(plan, "virtual_users") else (plan.get("virtual_users", 50) if isinstance(plan, dict) else 50),
+            "predicted_bottlenecks": bottlenecks or [],
+            "warnings": warnings or [],
+            "has_real_metrics": metrics is not None,
+            "metrics": metrics.model_dump() if hasattr(metrics, "model_dump") else (metrics if metrics else "Pending execution"),
         }
 
     return f"""\
@@ -207,7 +241,7 @@ def run_optimization_agent(state: AgentState) -> AgentState:
         model=settings.groq_optimization_model,
         schema_cls=OptimizationResult,
         temperature=settings.groq_temperature,
-        max_tokens=480,
+        max_tokens=360,
     )
 
     if result is None:

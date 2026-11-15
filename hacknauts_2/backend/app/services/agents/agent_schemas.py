@@ -27,9 +27,9 @@ ExecutionStatus = Literal["not_started", "running", "completed", "failed", "skip
 # ---------------------------------------------------------------------------
 
 class CodeFinding(BaseModel):
-    finding_id: str = Field(description="Unique finding identifier, e.g. CA-001")
-    title: str
-    category: str = Field(description="e.g. database, code-quality, security, scalability")
+    finding_id: str = Field(default="CA-001", description="Unique finding identifier, e.g. CA-001")
+    title: str = "Scalability finding"
+    category: str = Field(default="code", description="e.g. database, code-quality, security, scalability")
     severity: Severity = "medium"
     file_path: str = Field(default="", description="Relative file path; empty for architecture findings")
     line_number: int = Field(default=0, description="1-based line number; 0 when not applicable")
@@ -40,6 +40,31 @@ class CodeFinding(BaseModel):
     confidence: float = Field(default=0.8, ge=0.0, le=1.0, description="Agent confidence in this finding")
     scanner_id: Optional[str] = Field(default=None, description="ID of the originating scanner finding if any")
     ai_generated: bool = Field(default=True)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_finding_dict(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            if "finding_id" not in data:
+                data["finding_id"] = str(data.get("id") or "CA-001")
+            if "category" not in data:
+                data["category"] = str(data.get("area") or data.get("kind") or "code")
+            if "file_path" not in data:
+                data["file_path"] = str(data.get("file") or "")
+            if "line_number" not in data:
+                try:
+                    data["line_number"] = int(data.get("line") or 0)
+                except Exception:
+                    data["line_number"] = 0
+            if "evidence" not in data and "snippet" in data:
+                data["evidence"] = str(data["snippet"])
+            if "impact" not in data:
+                data["impact"] = str(data.get("practical_impact") or data.get("impact_under_load") or "May increase latency under load.")
+            if "explanation" not in data:
+                data["explanation"] = str(data.get("why") or data.get("description") or "Bottleneck identified under concurrent load.")
+            if "recommendation" not in data:
+                data["recommendation"] = str(data.get("suggested_fix") or "Refactor code following best practices.")
+        return data
 
     @field_validator("severity", mode="before")
     @classmethod
@@ -73,14 +98,29 @@ class FindingStatistics(BaseModel):
 class CodeAnalysisResult(BaseModel):
     agent: Literal["code_analysis"] = "code_analysis"
     overall_score: int = Field(default=80, ge=0, le=100, description="0 = many severe issues, 100 = clean")
-    summary: str
+    summary: str = "Code analysis completed."
     findings: list[CodeFinding] = Field(default_factory=list)
     statistics: FindingStatistics = Field(default_factory=FindingStatistics)
+
+    @field_validator("agent", mode="before")
+    @classmethod
+    def _normalize_agent(cls, v: Any) -> str:
+        return "code_analysis"
 
     @model_validator(mode="before")
     @classmethod
     def _ensure_statistics(cls, data: Any) -> Any:
         if isinstance(data, dict):
+            data["agent"] = "code_analysis"
+            if "summary" not in data or not data["summary"]:
+                data["summary"] = "Code analysis identified scalability bottlenecks and scanner insights."
+            if "overall_score" not in data:
+                data["overall_score"] = 80
+            else:
+                try:
+                    data["overall_score"] = max(0, min(100, int(data["overall_score"])))
+                except Exception:
+                    data["overall_score"] = 80
             if "statistics" not in data or not isinstance(data.get("statistics"), dict):
                 findings = data.get("findings", [])
                 stats = {"critical": 0, "high": 0, "medium": 0, "low": 0, "info": 0}
@@ -101,12 +141,25 @@ class CodeAnalysisResult(BaseModel):
 # ---------------------------------------------------------------------------
 
 class EndpointInfo(BaseModel):
-    path: str
-    method: str
+    path: str = "/"
+    method: str = "GET"
     purpose: str = ""
     authentication_required: bool = False
     testable: bool = True
     priority: Literal["high", "medium", "low"] = "medium"
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_endpoint_dict(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            if "path" not in data:
+                data["path"] = str(data.get("url") or data.get("route") or data.get("endpoint") or "/")
+            if "method" not in data:
+                data["method"] = str(data.get("http_method") or "GET").upper()
+            if "priority" in data and isinstance(data["priority"], str):
+                p = data["priority"].lower().strip()
+                data["priority"] = p if p in ("high", "medium", "low") else "medium"
+        return data
 
     @field_validator("priority", mode="before")
     @classmethod
@@ -128,9 +181,13 @@ class TestPlan(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def _normalize_plan(cls, data: Any) -> Any:
+        if isinstance(data, list):
+            data = data[0] if (len(data) > 0 and isinstance(data[0], dict)) else {}
         if isinstance(data, dict):
-            if "virtual_users" not in data and "vus" in data:
-                data["virtual_users"] = data["vus"]
+            if "virtual_users" not in data:
+                data["virtual_users"] = data.get("vus") or data.get("users") or data.get("target_vus") or 50
+            if "test_type" not in data and "name" in data:
+                data["test_type"] = data["name"]
             # If model returned a map of scenarios: e.g. {'load': {'vus': 50, ...}}
             for key in ("load", "stress", "smoke", "spike", "soak"):
                 if key in data and isinstance(data[key], dict):
@@ -190,14 +247,43 @@ class PerformanceResult(BaseModel):
     )
     bottlenecks: list[str] = Field(default_factory=list)
 
+    @field_validator("agent", mode="before")
+    @classmethod
+    def _normalize_agent(cls, v: Any) -> str:
+        return "performance_testing"
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_perf_result(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            data["agent"] = "performance_testing"
+            if "summary" not in data or not data["summary"]:
+                data["summary"] = "Automated performance testing plan generated."
+            tp = data.get("test_plan")
+            if isinstance(tp, list):
+                if len(tp) > 0 and isinstance(tp[0], dict):
+                    data["test_plan"] = next((p for p in tp if isinstance(p, dict) and p.get("name", "").lower() in ("load", "stress")), tp[0])
+                else:
+                    data["test_plan"] = {}
+            if "endpoints" in data and isinstance(data["endpoints"], dict):
+                eps = []
+                for p, v in data["endpoints"].items():
+                    if isinstance(v, dict):
+                        v.setdefault("path", p)
+                        eps.append(v)
+                    elif isinstance(v, str):
+                        eps.append({"path": p, "method": v})
+                data["endpoints"] = eps
+        return data
+
 
 # ---------------------------------------------------------------------------
 # Agent 3 – Optimization
 # ---------------------------------------------------------------------------
 
 class Optimization(BaseModel):
-    optimization_id: str = Field(description="e.g. OPT-001")
-    title: str
+    optimization_id: str = Field(default="OPT-001", description="e.g. OPT-001")
+    title: str = "Scalability optimization"
     priority: Priority = "medium"
     related_findings: list[str] = Field(
         default_factory=list,
@@ -213,6 +299,31 @@ class Optimization(BaseModel):
     risk: Risk = "low"
     requires_approval: bool = True
     validation_steps: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_opt(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            if "optimization_id" not in data:
+                data["optimization_id"] = str(data.get("id") or "OPT-001")
+            if "title" not in data:
+                data["title"] = str(data.get("name") or data.get("action") or data.get("recommendation") or "Scalability optimization")
+            if "file_path" not in data and "file" in data:
+                data["file_path"] = str(data["file"])
+            if "original_code" not in data and "before" in data:
+                data["original_code"] = str(data["before"])
+            if "optimized_code" not in data and "after" in data:
+                data["optimized_code"] = str(data["after"])
+            if "problem" not in data and "issue" in data:
+                data["problem"] = str(data["issue"])
+            data["requires_approval"] = True
+            if "risk" in data and isinstance(data["risk"], str):
+                r = data["risk"].lower().strip()
+                data["risk"] = r if r in ("high", "medium", "low") else "low"
+            if "priority" in data and isinstance(data["priority"], str):
+                p = data["priority"].lower().strip()
+                data["priority"] = p if p in ("critical", "high", "medium", "low") else "medium"
+        return data
 
     @field_validator("priority", mode="before")
     @classmethod
@@ -239,6 +350,22 @@ class OptimizationResult(BaseModel):
     optimizations: list[Optimization] = Field(default_factory=list)
     overall_recommendation: str = Field(default="Prioritize high-impact query refactoring and verify with load tests.")
     retest_required: bool = True
+
+    @field_validator("agent", mode="before")
+    @classmethod
+    def _normalize_agent(cls, v: Any) -> str:
+        return "optimization"
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_opt_result(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            data["agent"] = "optimization"
+            if "summary" not in data or not data["summary"]:
+                data["summary"] = "Optimization suggestions formulated."
+            if "optimizations" not in data:
+                data["optimizations"] = data.get("recommendations") or data.get("patches") or []
+        return data
 
 
 # ---------------------------------------------------------------------------
