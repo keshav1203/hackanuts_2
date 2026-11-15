@@ -1,4 +1,4 @@
-# ScalePilot AI
+# ScaleAI
 
 **AI-powered repository scalability analysis, performance-test planning,
 and code optimization recommendations.**
