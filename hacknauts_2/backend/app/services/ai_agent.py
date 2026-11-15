@@ -23,6 +23,7 @@ Error Isolation & Resilience:
 from __future__ import annotations
 
 import logging
+import time
 from typing import TypedDict
 
 from langgraph.graph import END, START, StateGraph
@@ -66,6 +67,7 @@ def code_analysis_node(state: AgentState) -> AgentState:
 
 
 def performance_node(state: AgentState) -> AgentState:
+    time.sleep(2.0)
     cb = state.get("stage_callback")
     if cb:
         try:
@@ -80,6 +82,7 @@ def performance_node(state: AgentState) -> AgentState:
 
 
 def optimization_node(state: AgentState) -> AgentState:
+    time.sleep(2.0)
     cb = state.get("stage_callback")
     if cb:
         try:
@@ -209,10 +212,16 @@ def run_ai_agent(
     perf_res = out.get("performance_result") or out.get("performance_analysis_result")
     opt_res = out.get("optimization_result")
 
+    ai_used = bool(
+        out.get("ai_used")
+        or (perf_res is not None and not any("performance: Groq unavailable" in e for e in out.get("errors", [])))
+        or (opt_res is not None and not any("optimization: Groq unavailable" in e for e in out.get("errors", [])))
+    )
+
     return {
         "findings": out.get("findings", findings),
         "summary": out.get("summary", out.get("combined_summary", "")),
-        "ai_used": out.get("ai_used", False),
+        "ai_used": ai_used,
         "code_analysis": code_res.model_dump() if code_res is not None else None,
         "performance": perf_res.model_dump() if perf_res is not None else None,
         "optimization": opt_res.model_dump() if opt_res is not None else None,

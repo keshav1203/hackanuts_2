@@ -16,7 +16,7 @@ from ..pipeline import run_pipeline
 from ..schemas import AnalysisIn, QueryIn, QueryOut, ReportListItem, ReportOut
 from ..security import current_user
 from ..services.git_ops import normalize_repo_url
-from ..services.groq_client import get_groq_client
+from ..services.groq_client import get_groq_client, resolve_model
 from ..services.k6_service import execute_k6
 
 log = logging.getLogger(__name__)
@@ -224,7 +224,7 @@ def ask_about_analysis(
     if client:
         try:
             resp = client.chat.completions.create(
-                model=settings.groq_code_model,
+                model=resolve_model(settings.groq_code_model),
                 messages=[
                     {
                         "role": "system",

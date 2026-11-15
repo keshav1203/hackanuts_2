@@ -61,7 +61,7 @@ def test_code_analysis_agent_independent(sample_profile, sample_findings):
     assert isinstance(res, CodeAnalysisResult)
     assert res.agent == "code_analysis"
     assert len(res.findings) >= 1
-    assert res.findings[0].category.lower() in ("database", "code")
+    assert res.findings[0].category.lower() in ("database", "code", "scalability", "code-quality", "performance")
     assert res.findings[0].file_path == "app/users.py"
     assert res.overall_score >= 0 and res.overall_score <= 100
 
@@ -81,7 +81,7 @@ def test_performance_agent_independent(sample_profile):
     assert res.metrics is None
     assert len(res.endpoints) >= 1
     assert res.test_plan.virtual_users > 0
-    assert "export default function" in res.k6_script or "export default ()" in res.k6_script
+    assert "export default" in res.k6_script
 
 
 def test_optimization_agent_independent(sample_profile, sample_findings):

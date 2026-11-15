@@ -78,8 +78,8 @@ def _build_user_message(profile: dict, scanner_findings: list[dict]) -> str:
             "area": f.get("area", "code").lower(),
             "file": f.get("file", ""),
             "line": f.get("line", 0),
-            "snippet": _sanitize_for_prompt(f.get("snippet", ""), 300),
-            "context": _sanitize_for_prompt(f.get("context", ""), 600),
+            "snippet": _sanitize_for_prompt(f.get("snippet", ""), 200),
+            "context": _sanitize_for_prompt(f.get("context", ""), 350),
             "why": f.get("why", ""),
         })
 
@@ -102,13 +102,13 @@ def _build_user_message(profile: dict, scanner_findings: list[dict]) -> str:
 
 ### INSTRUCTIONS:
 1. Inspect each deterministic scanner finding and enrich it:
-   - Provide an exact explanation of why this creates a bottleneck under concurrent load.
+   - Provide a concise explanation (1-2 sentences) of why this creates a bottleneck under concurrent load.
    - Detail the practical impact (e.g. connection pool exhaustion, memory leak, CPU spike).
    - Provide a concrete, minimal recommendation.
    - Include confidence (0.0 to 1.0).
 2. Calculate accurate statistics (critical, high, medium, low, info count).
 3. Compute overall_score (0 = severe degradation risks, 100 = clean, resilient).
-4. Provide a high-level summary paragraph.
+4. Provide a high-level summary paragraph (2-3 sentences).
 5. Return strictly valid JSON conforming to the CodeAnalysisResult schema.
 """
 
@@ -229,6 +229,7 @@ def run_code_analysis_agent(state: AgentState) -> AgentState:
         model=settings.groq_code_model,
         schema_cls=CodeAnalysisResult,
         temperature=settings.groq_temperature,
+        max_tokens=480,
     )
 
     if result is None:

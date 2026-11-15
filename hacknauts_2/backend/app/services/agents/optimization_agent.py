@@ -64,7 +64,7 @@ def _build_user_message(
 
     code_findings_summary = []
     if code_res and code_res.findings:
-        for f in code_res.findings[:settings.ai_max_findings]:
+        for f in code_res.findings[:2]:
             code_findings_summary.append({
                 "id": f.finding_id,
                 "title": f.title,
@@ -72,7 +72,7 @@ def _build_user_message(
                 "severity": f.severity,
                 "file": f.file_path,
                 "line": f.line_number,
-                "evidence": redact_secrets(f.evidence[:300]),
+                "evidence": redact_secrets(f.evidence[:200]),
                 "explanation": f.explanation,
                 "recommendation": f.recommendation,
             })
@@ -114,15 +114,15 @@ def _build_user_message(
 
 ### INSTRUCTIONS:
 1. Synthesize the findings from Code Analysis and Performance Testing.
-2. Select the highest-impact issues and formulate concrete optimizations.
+2. Select the highest-impact issues and formulate at most 2 concrete optimizations.
 3. For each optimization:
-   - Provide original_code snippet illustrating the exact defect.
-   - Provide optimized_code snippet showing the minimal drop-in improvement.
-   - Detail the root cause and why the change relieves pressure under concurrent load.
-   - Assess risk ('high', 'medium', 'low') and provide clear validation_steps.
+   - Provide original_code snippet illustrating the exact defect (under 4 lines).
+   - Provide optimized_code snippet showing the minimal drop-in improvement (under 4 lines).
+   - Detail the root cause and why the change relieves pressure under concurrent load concisely (1-2 sentences).
+   - Assess risk ('high', 'medium', 'low') and provide exactly 1 validation step.
    - Set requires_approval to true.
 4. Set retest_required to true.
-5. Provide a clear overall_recommendation.
+5. Provide a clear, concise overall_recommendation.
 6. Return strictly valid JSON conforming to the OptimizationResult schema.
 """
 
@@ -207,6 +207,7 @@ def run_optimization_agent(state: AgentState) -> AgentState:
         model=settings.groq_optimization_model,
         schema_cls=OptimizationResult,
         temperature=settings.groq_temperature,
+        max_tokens=480,
     )
 
     if result is None:

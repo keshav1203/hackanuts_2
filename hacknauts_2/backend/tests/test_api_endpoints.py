@@ -101,15 +101,17 @@ def test_auth_and_analyses_flow(client):
     # 3. Create a mock report directly in DB to test API analysis queries
     with SessionLocal() as db:
         user = db.query(User).filter(User.email == demo_res.json()["email"]).first()
-        repo = Repository(
-            user_id=user.id,
-            url="https://github.com/test-org/api-test-repo",
-            full_name="test-org/api-test-repo",
-            language="Python",
-            framework="FastAPI",
-        )
-        db.add(repo)
-        db.flush()
+        repo = db.query(Repository).filter(Repository.user_id == user.id, Repository.url == "https://github.com/test-org/api-test-repo").first()
+        if not repo:
+            repo = Repository(
+                user_id=user.id,
+                url="https://github.com/test-org/api-test-repo",
+                full_name="test-org/api-test-repo",
+                language="Python",
+                framework="FastAPI",
+            )
+            db.add(repo)
+            db.flush()
         report = Report(
             repository_id=repo.id,
             user_id=user.id,

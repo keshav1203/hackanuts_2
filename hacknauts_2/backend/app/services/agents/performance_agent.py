@@ -66,7 +66,10 @@ def _build_user_message(profile: dict, target_users: int) -> str:
     queues = ", ".join(profile.get("queues", [])) or "none"
     has_docker = profile.get("has_container_config", False)
 
-    endpoints = profile.get("endpoints", [])[:35]
+    endpoints = [
+        {"method": e.get("method", "GET"), "path": e.get("path", "/")}
+        for e in profile.get("endpoints", [])[:5]
+    ]
     endpoint_json = json.dumps(endpoints, indent=2)
 
     return f"""\
@@ -93,11 +96,11 @@ def _build_user_message(profile: dict, target_users: int) -> str:
 5. Soak: moderate sustained load to detect resource leaks.
 
 ### INSTRUCTIONS:
-1. Map discovered endpoints to EndpointInfo objects (method, path, purpose, auth required, testable).
+1. Map up to 3 key endpoints to EndpointInfo objects (method, path, concise purpose, auth required, testable).
 2. Configure a safe test plan suitable for {target_users} target users.
-3. Generate a complete, valid k6 JavaScript script adhering to k6 syntax.
+3. Generate a minimal valid k6 JavaScript script adhering to k6 syntax (under 15 lines).
 4. Include realistic thresholds (e.g. p95 < 500ms, failed requests < 5%).
-5. List architectural warnings and predicted bottlenecks.
+5. List architectural warnings and up to 2 predicted bottlenecks.
 6. Set execution_status to "not_started" and metrics to null.
 7. Return strictly valid JSON conforming to the PerformanceResult schema.
 """
@@ -181,6 +184,7 @@ def run_performance_agent(state: AgentState) -> AgentState:
         model=settings.groq_performance_model,
         schema_cls=PerformanceResult,
         temperature=settings.groq_temperature,
+        max_tokens=480,
     )
 
     if result is None:
