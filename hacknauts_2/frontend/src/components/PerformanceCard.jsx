@@ -64,6 +64,7 @@ export default function PerformanceCard({ report }) {
 
   // Calculate peak efficiency summary
   const lastPoint = curve && curve.length > 0 ? curve[curve.length - 1] : null;
+  const firstPoint = curve && curve.length > 0 ? curve[0] : null;
   const cpuReduction = lastPoint
     ? Math.round(((lastPoint.beforeCpu - lastPoint.afterCpu) / lastPoint.beforeCpu) * 100)
     : 0;
@@ -76,6 +77,14 @@ export default function PerformanceCard({ report }) {
   const errorReduction = lastPoint && lastPoint.beforeErr > 0
     ? Math.round(((lastPoint.beforeErr - lastPoint.afterErr) / lastPoint.beforeErr) * 100)
     : 0;
+
+  // Scalability health: score at peak load (should be lower than at low load)
+  const peakHealth = lastPoint?.scalabilityScore ?? null;
+  const lowLoadHealth = firstPoint?.scalabilityScore ?? null;
+  // Confirm expected direction: health decreases as users increase
+  const healthDelta = peakHealth !== null && lowLoadHealth !== null
+    ? peakHealth - lowLoadHealth   // negative = health correctly dropped under load
+    : null;
 
   return (
     <Card>
@@ -131,8 +140,59 @@ export default function PerformanceCard({ report }) {
       <CardContent className="space-y-6">
         {curve ? (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-            {/* Efficiency summary stat pills with corresponding graph colors */}
+            {/* Efficiency summary stat pills */}
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {/* Scalability Health at Peak Load – the most important pill */}
+              <div className="flex items-center gap-3 rounded-lg border bg-card/60 p-3 col-span-2 sm:col-span-4">
+                <div className="rounded-md bg-primary/10 p-2 text-primary">
+                  <Zap size={18} />
+                </div>
+                <div className="flex-1">
+                  <div className="text-xs text-muted-foreground">Scalability Health at Peak Load ({targetUsers} VUs)</div>
+                  <div className="flex items-center gap-4">
+                    <div
+                      className={`text-lg font-bold ${
+                        peakHealth === null
+                          ? "text-muted-foreground"
+                          : peakHealth >= 70
+                          ? "text-emerald-500"
+                          : peakHealth >= 40
+                          ? "text-amber-500"
+                          : "text-rose-500"
+                      }`}
+                    >
+                      {peakHealth !== null ? `${peakHealth}/100` : "—"}
+                    </div>
+                    {healthDelta !== null && (
+                      <div className="text-xs text-muted-foreground">
+                        Low load: <span className="font-semibold text-foreground">{lowLoadHealth}/100</span>
+                        {" → "}
+                        Peak: <span className={`font-semibold ${peakHealth >= 70 ? "text-emerald-500" : peakHealth >= 40 ? "text-amber-500" : "text-rose-500"}`}>{peakHealth}/100</span>
+                        {" ("}
+                        <span className={healthDelta < 0 ? "text-rose-400" : "text-emerald-400"}>
+                          {healthDelta < 0 ? `${healthDelta}` : `+${healthDelta}`} pts under load
+                        </span>
+                        {")"}  
+                      </div>
+                    )}
+                  </div>
+                </div>
+                {/* Mini health bar */}
+                {peakHealth !== null && (
+                  <div className="w-24 shrink-0">
+                    <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${
+                          peakHealth >= 70 ? "bg-emerald-500" : peakHealth >= 40 ? "bg-amber-500" : "bg-rose-500"
+                        }`}
+                        style={{ width: `${peakHealth}%` }}
+                      />
+                    </div>
+                    <div className="mt-0.5 text-[10px] text-muted-foreground text-right">{peakHealth}% healthy</div>
+                  </div>
+                )}
+              </div>
+
               <div className="flex items-center gap-3 rounded-lg border bg-card/60 p-3">
                 <div className="rounded-md bg-cyan-500/10 p-2 text-cyan-500">
                   <Zap size={18} />
@@ -352,6 +412,51 @@ export default function PerformanceCard({ report }) {
                         dot={{ r: 4, fill: COLORS.memory.after, strokeWidth: 2, stroke: "#ffffff" }}
                       />
                     </ComposedChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+
+              {/* Plot 5: SCALABILITY HEALTH SCORE – decreases as users increase (correct behavior) */}
+              {(activeTab === "all" || activeTab === "latency") && curve.some((c) => c.scalabilityScore !== undefined) && (
+                <div className="rounded-xl border bg-card/50 p-4 lg:col-span-2">
+                  <div className="mb-3 flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-semibold flex items-center gap-2">
+                        <Activity size={15} className="text-emerald-500" /> Scalability Health Score vs. Virtual Users
+                      </p>
+                      <p className="text-[11px] text-muted-foreground">
+                        Area Chart • Score (0–100) degrades under higher concurrency — lower is worse
+                      </p>
+                    </div>
+                    <span className="rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                      100 = fully healthy · 0 = saturated
+                    </span>
+                  </div>
+                  <ResponsiveContainer width="100%" height={200}>
+                    <AreaChart data={curve}>
+                      <defs>
+                        <linearGradient id="healthGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#10b981" stopOpacity={0.5} />
+                          <stop offset="95%" stopColor="#10b981" stopOpacity={0.02} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                      <XAxis dataKey="users" tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" />
+                      <YAxis tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" domain={[0, 100]} unit="/100" />
+                      <Tooltip contentStyle={tip} formatter={(val) => [`${val}/100`, "Scalability Score"]} />
+                      <ReferenceLine y={70} stroke="#f59e0b" strokeDasharray="4 4" label={{ value: "70 – Warning", fill: "#f59e0b", fontSize: 10 }} />
+                      <ReferenceLine y={40} stroke="#ef4444" strokeDasharray="4 4" label={{ value: "40 – Critical", fill: "#ef4444", fontSize: 10 }} />
+                      <Area
+                        name="Scalability Score"
+                        type="monotone"
+                        dataKey="scalabilityScore"
+                        stroke="#10b981"
+                        strokeWidth={2.5}
+                        fillOpacity={1}
+                        fill="url(#healthGrad)"
+                        dot={{ r: 4, fill: "#10b981" }}
+                      />
+                    </AreaChart>
                   </ResponsiveContainer>
                 </div>
               )}
