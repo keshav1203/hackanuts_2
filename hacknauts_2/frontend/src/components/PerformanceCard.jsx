@@ -53,21 +53,14 @@ export default function PerformanceCard({ report }) {
   const rawCurve = report?.load_test?.curve;
   const targetUsers = report?.target_users || 100;
 
-  // Normalize curve with fallback calculations for older reports
-  const curve = rawCurve?.map((c) => {
-    const ratio = c.users / Math.max(1, targetUsers);
-    const beforeCpu = c.beforeCpu ?? Math.round(Math.min(98.0, Math.max(18.0, 22.0 + ratio * 68.0)) * 10) / 10;
-    const afterCpu = c.afterCpu ?? Math.round(Math.min(65.0, Math.max(12.0, 14.0 + ratio * 28.0)) * 10) / 10;
-    const beforeMem = c.beforeMem ?? Math.round((160.0 + ratio * 620.0) * 10) / 10;
-    const afterMem = c.afterMem ?? Math.round((110.0 + ratio * 160.0) * 10) / 10;
-    return {
-      ...c,
-      beforeCpu,
-      afterCpu,
-      beforeMem,
-      afterMem,
-    };
-  });
+  // Use empirical telemetry curves discovered via load testing
+  const curve = rawCurve?.map((c) => ({
+    ...c,
+    beforeCpu: c.beforeCpu ?? 0,
+    afterCpu: c.afterCpu ?? 0,
+    beforeMem: c.beforeMem ?? 0,
+    afterMem: c.afterMem ?? 0,
+  }));
 
   // Calculate peak efficiency summary
   const lastPoint = curve && curve.length > 0 ? curve[curve.length - 1] : null;

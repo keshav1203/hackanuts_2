@@ -5,6 +5,7 @@ export const STEPS = [
   "Scanning code, queries and architecture",
   "Running Code Analysis Agent",
   "Running Performance Agent",
+  "Executing Performance & Load Testing",
   "Running Optimization Agent",
 ];
 
